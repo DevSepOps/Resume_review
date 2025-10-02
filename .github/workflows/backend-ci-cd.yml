@@ -40,17 +40,17 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov factory-boy
 
     - name: Run tests with pytest
-      working-directory: ./backend
+      working-directory: ./backend/app
       env:
-        PYTHONPATH: ./app
+        PYTHONPATH: .
         SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
         JWT_SECRET_KEY: test_jwt_secret
         SECRET_KEY: test_secret_key
       run: |
-        python3 -m pytest app/tests -v --maxfail=5 --disable-warnings --cov=app --cov-report=xml
+        python -m pytest tests/ -v --maxfail=5 --disable-warnings --cov=app --cov-report=xml
 
   build:
     name: Build Docker Image
@@ -82,3 +82,4 @@ jobs:
           ${{ secrets.DOCKER_USERNAME }}/resume-backend:${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+    

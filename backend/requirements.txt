@@ -6,12 +6,10 @@ certifi==2025.8.3
 click==8.3.0
 dnspython==2.8.0
 email-validator==2.3.0
-factory_boy==3.3.3
 Faker==37.8.0
 fastapi==0.118.0
 fastapi-cli==0.0.13
 fastapi-cloud-cli==0.2.1
-flet==0.28.3
 greenlet==3.2.4
 h11==0.16.0
 httpcore==1.0.9
