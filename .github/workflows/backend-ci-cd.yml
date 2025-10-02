@@ -49,11 +49,6 @@ jobs:
       run: |
         python -m pytest tests/ -v
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./backend/app/coverage.xml
-
   build:
     name: Build Docker Image
     runs-on: ubuntu-latest
