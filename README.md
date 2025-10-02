@@ -63,7 +63,7 @@ If you prefer manual setup:
 
 🐳 Use Docker secrets in production
 
-### Project Structure
+<!-- ### Project Structure
 
     ```bash
         resume-review-api/
@@ -73,7 +73,24 @@ If you prefer manual setup:
         ├── env.example
         ├── setup.sh
         ├── setup.ps1
-        └── README.md
+        └── README.md -->
+
+### todo
+GitHub Secrets:
+GitHub:
+Settings → Secrets and variables → Actions
+ 
+Add:
+
+DOCKER_USERNAME -  Docker Hub username
+
+DOCKER_PASSWORD - Docker Hub password
+
+STAGING_HOST - staging server address
+
+STAGING_USERNAME - Server user
+
+STAGING_SSH_KEY - Private SSH key
 
 ### 🤝 Contributing
 Please read our contributing guidelines before submitting pull requests.
