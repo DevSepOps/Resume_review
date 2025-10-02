@@ -1,21 +1,64 @@
-name: Backend CI/CD
+name: Backend CI/CD - Smart Testing
 
 on:
   push:
     branches: [ main, dev ]
     paths:
-      - 'backend/**'
+      - 'backend/app/**'
       - '.github/workflows/backend-ci-cd.yml'
   pull_request:
     branches: [ main, dev ]
     paths:
-      - 'backend/**'
+      - 'backend/app/**'
 
 jobs:
-  test:
-    name: Run Backend Tests
+  # Job for determining which tests to run
+  determine-tests:
+    name: Determine Test Scope
     runs-on: ubuntu-latest
-    
+    outputs:
+      run-users-tests: ${{ steps.changes.outputs.users }}
+      run-auth-tests: ${{ steps.changes.outputs.auth }}
+      run-models-tests: ${{ steps.changes.outputs.models }}
+      run-api-tests: ${{ steps.changes.outputs.api }}
+      run-all-tests: ${{ steps.changes.outputs.core || steps.changes.outputs.integration }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Detect changed files
+      uses: dorny/paths-filter@v3
+      id: changes
+      with:
+        filters: |
+          users:
+            - 'backend/app/users/**'
+            - 'backend/app/tests/test_models/test_user_models.py'
+            - 'backend/app/tests/test_api/test_users_api.py'
+          auth:
+            - 'backend/app/auth/**'
+            - 'backend/app/tests/test_auth/**'
+          models:
+            - 'backend/app/tests/test_models/**'
+            - 'backend/app/users/models.py'
+            - 'backend/app/CV/models.py'
+            - 'backend/app/auth/token_blacklist.py'
+          api:
+            - 'backend/app/tests/test_api/**'
+            - 'backend/app/users/routes.py'
+            - 'backend/app/CV/routes.py'
+            - 'backend/app/admin/routes.py'
+          core:
+            - 'backend/app/core/**'
+            - 'backend/app/main.py'
+            - 'backend/app/tests/conftest.py'
+          integration:
+            - 'backend/app/tests/test_integration/**'
+
+  # Database setup for tests
+  setup-db:
+    name: Setup Test Database
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:15
@@ -31,6 +74,13 @@ jobs:
         ports:
           - 5432:5432
 
+  # Conditional test jobs
+  test-users:
+    name: User Tests
+    runs-on: ubuntu-latest
+    needs: [determine-tests, setup-db]
+    if: needs.determine-tests.outputs.run-users-tests == 'true' || needs.determine-tests.outputs.run-all-tests == 'true'
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -43,24 +93,185 @@ jobs:
     - name: Install dependencies
       working-directory: ./backend
       run: |
-        python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest pytest-asyncio
+        pip install -r requirements-test.txt
 
-    - name: Run tests
-      working-directory: ./backend
+    - name: Run user-related tests
+      working-directory: ./backend/app
       env:
         SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-        JWT_SECRET_KEY: test_jwt_secret
-        SECRET_KEY: test_secret_key
+        JWT_SECRET_KEY: test_jwt_secret_for_ci_cd
+        SECRET_KEY: test_secret_key_for_ci_cd
       run: |
-        python -m pytest tests/ -v
+        python -m pytest tests/test_models/test_user_models.py tests/test_api/test_users_api.py -v --cov=users --cov-report=xml
 
-  build-and-push:
-    name: Build and Push Docker Image
+  test-auth:
+    name: Auth Tests
     runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main'
+    needs: [determine-tests, setup-db]
+    if: needs.determine-tests.outputs.run-auth-tests == 'true' || needs.determine-tests.outputs.run-all-tests == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+    - name: Run auth tests
+      working-directory: ./backend/app
+      env:
+        SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        JWT_SECRET_KEY: test_jwt_secret_for_ci_cd
+        SECRET_KEY: test_secret_key_for_ci_cd
+      run: |
+        python -m pytest tests/test_auth/ -v --cov=auth --cov-report=xml
+
+  test-models:
+    name: Model Tests
+    runs-on: ubuntu-latest
+    needs: [determine-tests, setup-db]
+    if: needs.determine-tests.outputs.run-models-tests == 'true' || needs.determine-tests.outputs.run-all-tests == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+    - name: Run model tests
+      working-directory: ./backend/app
+      env:
+        SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        JWT_SECRET_KEY: test_jwt_secret_for_ci_cd
+        SECRET_KEY: test_secret_key_for_ci_cd
+      run: |
+        python -m pytest tests/test_models/ -v --cov-append --cov-report=xml
+
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    needs: [determine-tests, setup-db]
+    if: needs.determine-tests.outputs.run-api-tests == 'true' || needs.determine-tests.outputs.run-all-tests == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+    - name: Run API tests
+      working-directory: ./backend/app
+      env:
+        SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        JWT_SECRET_KEY: test_jwt_secret_for_ci_cd
+        SECRET_KEY: test_secret_key_for_ci_cd
+      run: |
+        python -m pytest tests/test_api/ -v --cov-append --cov-report=xml
+
+  # Always run integration tests if any backend code changes
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [determine-tests, setup-db]
+    if: always() && (needs.determine-tests.outputs.run-all-tests == 'true' || (
+      needs.determine-tests.outputs.run-users-tests == 'true' ||
+      needs.determine-tests.outputs.run-auth-tests == 'true' ||
+      needs.determine-tests.outputs.run-models-tests == 'true' ||
+      needs.determine-tests.outputs.run-api-tests == 'true'  ))
+
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+    - name: Run integration tests
+      working-directory: ./backend/app
+      env:
+        SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        JWT_SECRET_KEY: test_jwt_secret_for_ci_cd
+        SECRET_KEY: test_secret_key_for_ci_cd
+      run: |
+        python -m pytest tests/test_integration/ -v --cov-append --cov-report=xml
+
+  # Combine coverage and final report
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-users, test-auth, test-models, test-api, test-integration]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all coverage artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: coverage-reports
+
+    - name: Combine coverage reports
+      working-directory: ./backend/app
+      run: |
+        pip install coverage
+        python -m coverage combine coverage-reports/coverage*.xml
+        python -m coverage xml -i
+
+    - name: Upload combined coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/app/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Check minimum coverage
+      working-directory: ./backend/app
+      run: |
+        python -m coverage report --fail-under=80
+
+  # Build and deploy only on main branch
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    needs: [coverage-report]
+    if: github.ref == 'refs/heads/main' && needs.coverage-report.result == 'success'
     
     steps:
     - name: Checkout code
@@ -87,23 +298,14 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Deploy to staging server
+    - name: Deploy to production
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.STAGING_HOST }}
-        username: ${{ secrets.STAGING_USERNAME }}
-        key: ${{ secrets.STAGING_SSH_KEY }}
+        host: ${{ secrets.PRODUCTION_HOST }}
+        username: ${{ secrets.PRODUCTION_USERNAME }}
+        key: ${{ secrets.PRODUCTION_SSH_KEY }}
         script: |
           cd /opt/resume-review-startup
           docker-compose pull backend
           docker-compose up -d backend
+  
