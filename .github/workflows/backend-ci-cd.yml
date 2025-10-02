@@ -47,7 +47,7 @@ jobs:
         JWT_SECRET_KEY: test_jwt_secret
         SECRET_KEY: test_secret_key
       run: |
-        python -m pytest tests/ -v --cov=./ --cov-report=xml
+        python -m pytest tests/ -v
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
