@@ -45,11 +45,12 @@ jobs:
     - name: Run tests with pytest
       working-directory: ./backend
       env:
+        PYTHONPATH: ./app
         SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
         JWT_SECRET_KEY: test_jwt_secret
         SECRET_KEY: test_secret_key
       run: |
-        pytest app/tests -v --maxfail=5 --disable-warnings --cov=app --cov-report=xml
+        -m pytest app/tests -v --maxfail=5 --disable-warnings --cov=app --cov-report=xml
 
   build:
     name: Build Docker Image
