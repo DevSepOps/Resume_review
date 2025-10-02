@@ -38,16 +38,18 @@ jobs:
     - name: Install dependencies
       working-directory: ./backend
       run: |
+        pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pytest pytest-cov
 
-    - name: Run tests
-      working-directory: ./backend/app
+    - name: Run tests with pytest
+      working-directory: ./backend
       env:
         SQLALCHEMY_DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
         JWT_SECRET_KEY: test_jwt_secret
         SECRET_KEY: test_secret_key
       run: |
-        python -m pytest tests/ -v
+        pytest app/tests -v --maxfail=5 --disable-warnings --cov=app --cov-report=xml
 
   build:
     name: Build Docker Image
