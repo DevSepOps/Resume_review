@@ -50,7 +50,7 @@ jobs:
         JWT_SECRET_KEY: test_jwt_secret
         SECRET_KEY: test_secret_key
       run: |
-        -m pytest app/tests -v --maxfail=5 --disable-warnings --cov=app --cov-report=xml
+        python3 -m pytest app/tests -v --maxfail=5 --disable-warnings --cov=app --cov-report=xml
 
   build:
     name: Build Docker Image
