@@ -6,6 +6,8 @@ certifi==2025.8.3
 click==8.3.0
 dnspython==2.8.0
 email-validator==2.3.0
+factory_boy==3.3.3
+Faker==37.8.0
 fastapi==0.118.0
 fastapi-cli==0.0.13
 fastapi-cloud-cli==0.2.1
@@ -34,7 +36,6 @@ PyJWT==2.10.1
 pytest==7.4.0
 python-dotenv==1.1.1
 python-multipart==0.0.20
-psycopg2-binary
 PyYAML==6.0.3
 repath==0.9.0
 rich==14.1.0
@@ -49,6 +50,7 @@ starlette==0.48.0
 typer==0.19.2
 typing-inspection==0.4.1
 typing_extensions==4.15.0
+tzdata==2025.2
 urllib3==2.5.0
 uvicorn==0.37.0
 uvloop==0.21.0
