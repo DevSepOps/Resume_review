@@ -12,10 +12,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from core.database import Base
 from passlib.context import CryptContext
-from CV.models import Resume
+# from CV.models import Resume
 
 pwd_context = CryptContext(
-    schemes=["bycrypt"],
+    schemes=["bcrypt"],
     deprecated="auto"
 )
 

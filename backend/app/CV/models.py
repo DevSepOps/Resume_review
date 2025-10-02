@@ -2,7 +2,7 @@ from sqlalchemy import (
     ForeignKey, String, Integer, Column, DateTime, func
 )
 from sqlalchemy.orm import relationship
-from users.models import UsersModel
+# from users.models import UsersModel
 from core.database import Base
 
 class Resume(Base):
