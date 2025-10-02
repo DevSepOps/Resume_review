@@ -1,35 +1,48 @@
 import pytest
-from factories.user_factory import UserFactory
+from app.tests.factories.user_factory import UserFactory
 
 class TestUsersAPI:
     """Test users endpoints"""
     
     def test_register_user_success(self, client, sample_user_data):
-        """Test successful signup"""
+        """Test successful user registration"""
         response = client.post("/users/register", json=sample_user_data)
-        
         assert response.status_code == 201
         assert response.json()["detail"] == "User registered successfully"
     
-    def test_register_user_duplicate(self, client, test_db, sample_user_data):
-        """Test creating excisting user"""
-        client.post("/users/register", json=sample_user_data)
+    def test_register_user_duplicate(self, client, test_db):
+        """Test duplicate user registration using UserFactory"""
+        # Create user first using factory
+        user = UserFactory.create(
+            username="duplicateuser",
+            email="duplicate@example.com",
+            password="testpass123"
+        )
+        test_db.add(user)
+        test_db.commit()
         
-        response = client.post("/users/register", json=sample_user_data)
+        # Try to register same username
+        duplicate_data = {
+            "username": "duplicateuser",
+            "password": "anotherpass123",
+            "confirm_password": "anotherpass123",
+            "email": "different@example.com",
+            "github": "https://github.com/duplicate"
+        }
+        response = client.post("/users/register", json=duplicate_data)
         
         assert response.status_code == 409
         assert "already exists" in response.json()["detail"]
     
     def test_login_success(self, client, test_db):
-        """Test login status"""
-        user_data = {
-            "username": "loginuser",
-            "password": "loginpass123",
-            "confirm_password": "loginpass123",
-            "email": "login@example.com",
-            "github": "https://github.com/loginuser"
-        }
-        client.post("/users/register", json=user_data)
+        """Test successful login using UserFactory"""
+        user = UserFactory.create(
+            username="loginuser",
+            email="login@example.com",
+            password="loginpass123"
+        )
+        test_db.add(user)
+        test_db.commit()
         
         login_data = {
             "username": "loginuser",
@@ -44,15 +57,14 @@ class TestUsersAPI:
         assert data["detail"] == "logged in successfully"
     
     def test_login_wrong_password(self, client, test_db):
-        """Test wrong password login"""
-        user_data = {
-            "username": "loginuser2",
-            "password": "loginpass123",
-            "confirm_password": "loginpass123",
-            "email": "login2@example.com",
-            "github": "https://github.com/loginuser2"
-        }
-        client.post("/users/register", json=user_data)
+        """Test login with wrong password using UserFactory"""
+        user = UserFactory.create(
+            username="loginuser2",
+            email="login2@example.com",
+            password="correctpass"
+        )
+        test_db.add(user)
+        test_db.commit()
         
         login_data = {
             "username": "loginuser2",
@@ -64,15 +76,14 @@ class TestUsersAPI:
         assert "Invalid username or password" in response.json()["detail"]
     
     def test_refresh_token(self, client, test_db):
-        """Test refresh token"""
-        user_data = {
-            "username": "refreshuser",
-            "password": "refreshpass123",
-            "confirm_password": "refreshpass123",
-            "email": "refresh@example.com",
-            "github": "https://github.com/refreshuser"
-        }
-        client.post("/users/register", json=user_data)
+        """Test token refresh using UserFactory"""
+        user = UserFactory.create(
+            username="refreshuser",
+            email="refresh@example.com",
+            password="refreshpass123"
+        )
+        test_db.add(user)
+        test_db.commit()
         
         login_data = {"username": "refreshuser", "password": "refreshpass123"}
         login_response = client.post("/users/login", json=login_data)
@@ -85,24 +96,22 @@ class TestUsersAPI:
         assert "access_token" in response.json()
 
 class TestProtectedEndpoints:
-    """Test secure endpoint"""
+    """Test protected endpoints"""
     
     def test_access_protected_endpoint_without_token(self, client):
-        """Test access without token"""
+        """Test accessing protected endpoint without token"""
         response = client.get("/resumes/my-resumes")
         assert response.status_code == 401  # Unauthorized
     
     def test_access_protected_endpoint_with_valid_token(self, client, test_db):
-        """Test access with token"""
-  
-        user_data = {
-            "username": "protecteduser",
-            "password": "protected123",
-            "confirm_password": "protected123",
-            "email": "protected@example.com",
-            "github": "https://github.com/protecteduser"
-        }
-        client.post("/users/register", json=user_data)
+        """Test accessing protected endpoint with valid token using UserFactory"""
+        user = UserFactory.create(
+            username="protecteduser",
+            email="protected@example.com",
+            password="protected123"
+        )
+        test_db.add(user)
+        test_db.commit()
         
         login_data = {"username": "protecteduser", "password": "protected123"}
         login_response = client.post("/users/login", json=login_data)
@@ -111,4 +120,4 @@ class TestProtectedEndpoints:
         headers = {"Authorization": f"Bearer {access_token}"}
         response = client.get("/resumes/my-resumes", headers=headers)
         
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 404]  # 200 if resumes exist, 404 if none

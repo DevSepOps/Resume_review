@@ -1,8 +1,8 @@
-from users.models import UsersModel, UserRole
 import factory
+from app.users.models import UsersModel, UserRole
 
 class UserFactory(factory.Factory):
-    """Factory for creating users"""
+    """Factory for creating test users"""
     
     class Meta:
         model = UsersModel
@@ -15,7 +15,7 @@ class UserFactory(factory.Factory):
     
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
-        """Creating user with hashed password"""
+        """Create user with hashed password"""
         password = kwargs.pop('password', 'testpass123')
         user = model_class(*args, **kwargs)
         user.set_password(password)
@@ -23,10 +23,10 @@ class UserFactory(factory.Factory):
     
     @classmethod
     def create_admin(cls, **kwargs):
-        """Creating Admin user"""
+        """Create admin user"""
         return cls.create(role=UserRole.ADMIN, **kwargs)
     
     @classmethod
     def create_expert(cls, **kwargs):
-        """Creating Expert user"""
+        """Create expert user"""
         return cls.create(role=UserRole.EXPERT, **kwargs)

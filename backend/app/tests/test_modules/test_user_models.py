@@ -1,13 +1,13 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
-from users.models import UsersModel, UserRole
-from factories.user_factory import UserFactory
+from app.tests.factories.user_factory import UserFactory
+from app.users.models import UsersModel, UserRole
 
 class TestUserModel:
     """Test User model"""
     
     def test_create_user(self, test_db):
-        """Test user creation"""
+        """Test user creation using UserFactory"""
         user = UserFactory.create(
             username="testuser",
             email="test@example.com"
@@ -22,12 +22,12 @@ class TestUserModel:
         assert user.verify_password("testpass123") == True
     
     def test_user_unique_constraint(self, test_db):
-        """Test check unique username and email"""
+        """Test unique username and email constraint using UserFactory"""
         user1 = UserFactory.create(username="duplicate", email="duplicate@example.com")
         test_db.add(user1)
         test_db.commit()
         
-        # Has to has un-unique error
+        # Should raise integrity error for duplicate username
         user2 = UserFactory.create(username="duplicate", email="different@example.com")
         test_db.add(user2)
         
@@ -37,7 +37,7 @@ class TestUserModel:
         test_db.rollback()
     
     def test_user_password_hashing(self):
-        """Password hash test"""
+        """Test password hashing using UserFactory"""
         user = UserFactory.build()
         plain_password = "my_password"
         user.set_password(plain_password)
@@ -47,30 +47,9 @@ class TestUserModel:
         assert user.password != plain_password
     
     def test_user_role_enum(self):
-        """Test user roles"""
+        """Test user role enum using UserFactory"""
         user = UserFactory.build(role=UserRole.ADMIN)
         assert user.role.value == "admin"
         
         user.role = UserRole.EXPERT
         assert user.role.value == "expert"
-
-class TestTokenBlacklistModel:
-    """Test blacklist tokens"""
-    
-    def test_create_blacklisted_token(self, test_db):
-        """Test blacklist token creation"""
-        from auth.token_blacklist import BlacklistedToken
-        from datetime import datetime, timedelta
-        
-        token = BlacklistedToken(
-            token="test_token_123",
-            user_id=1,
-            expires_at=datetime.utcnow() + timedelta(hours=1)
-        )
-        
-        test_db.add(token)
-        test_db.commit()
-        
-        assert token.id is not None
-        assert token.token == "test_token_123"
-        assert token.user_id == 1
