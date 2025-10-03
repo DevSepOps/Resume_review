@@ -63,26 +63,17 @@ If you prefer manual setup:
 
 🐳 Use Docker secrets in production
 
-<!-- ### Project Structure
-
-    ```bash
-        resume-review-api/
-        ├── app/
-        ├── docker-compose.yml
-        ├── Dockerfile.backend
-        ├── env.example
-        ├── setup.sh
-        ├── setup.ps1
-        └── README.md -->
 
 ### Frontend and backend structure
 
-┌─────────────────┐    HTTP Requests    ┌─────────────────┐
-│   Frontend      │ ←────────────────→  │   Backend       │
-│   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
-└─────────────────┘                     └─────────────────┘
-         │                                      │
-         └───────────── API Client ─────────────┘
+The Frontend and Backend structure:
+    ```bash
+    ┌─────────────────┐    HTTP Requests    ┌─────────────────┐
+    │   Frontend      │ ←────────────────→  │   Backend       │
+    │   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
+    └─────────────────┘                     └─────────────────┘
+             │                                      │
+             └───────────── API Client ─────────────┘
 
 ### 🤝 Contributing
 Please read our contributing guidelines before submitting pull requests.
