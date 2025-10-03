@@ -4,9 +4,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from CV.routes import router as cv_routes
-from users.routes import router as users_routes
-from admin.routes import router as admin_router
+from app.CV.routes import router as cv_routes
+from app.users.routes import router as users_routes
+from app.admin.routes import router as admin_routes
 import time
 import os
 
@@ -21,51 +21,22 @@ tags_metadata = [
     }
 ]
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    '''Lifespan with auto-migration'''
+    '''Simple lifespan without auto-migration'''
     print("🚀 Application starting up...")
     
-    # Run database migrations automatically
     try:
-        if os.getenv("AUTO_MIGRATE", "true").lower() == "true":
-            print("📦 Running database migrations...")
-            
-            # DB check
-            from core.database import engine
-            from sqlalchemy import text
-            
-            try:
-                # DB connection test
-                with engine.connect() as conn:
-                    conn.execute(text("SELECT 1"))
-                print("🔗 Database connection successful")
-            except Exception as db_error:
-                print(f"❌ Database connection failed: {db_error}")
-                if os.getenv("ENVIRONMENT") == "development":
-                    raise
-                return
-            
-            # اجرای migrations
-            from alembic.config import Config
-            from alembic import command
-            
-            alembic_cfg = Config("alembic.ini")
-            
-            # Safe migration
-            try:
-                command.upgrade(alembic_cfg, "head")
-                print("✅ Database migrations completed successfully")
-            except Exception as migration_error:
-                print(f"⚠️ Migration issue: {migration_error}")
-                if os.getenv("ENVIRONMENT") == "development":
-                    raise
-                    
-        else:
-            print("⏭️ Auto-migration disabled via environment variable")
-            
+        from app.core.database import engine
+        from sqlalchemy import text
+        
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print("🔗 Database connection successful")
+        
     except Exception as e:
-        print(f"❌ Startup process failed: {e}")
+        print(f"❌ Database connection failed: {e}")
         if os.getenv("ENVIRONMENT") == "development":
             raise
     
@@ -96,7 +67,7 @@ app = FastAPI(
 # Adding routes to API
 app.include_router(users_routes)
 app.include_router(cv_routes)
-app.include_router(admin_router)
+app.include_router(admin_routes)
 
 @app.get("/")
 async def root():

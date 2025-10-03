@@ -6,6 +6,9 @@ docker-compose.override.yml
 .idea/
 *.swp
 *.swo
+**/.vagrant/
+**/.docker/
+**/.cache/
 
 # Logs
 *.log
@@ -15,6 +18,7 @@ logs/
 .env
 .env.*
 !.env.example
+
 
 # Database
 backend/postgres/data/
@@ -42,3 +46,7 @@ frontend/.env.production.local
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
+
+
+.bash_history
+.sudo_as_admin_successful

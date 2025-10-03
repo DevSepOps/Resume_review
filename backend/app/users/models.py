@@ -10,7 +10,7 @@ from sqlalchemy import (
     Enum
 )
 from sqlalchemy.orm import relationship
-from core.database import Base
+from app.core.database import Base
 from passlib.context import CryptContext
 # from CV.models import Resume
 

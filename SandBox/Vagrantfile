@@ -5,7 +5,12 @@ Vagrant.configure("2") do |config|
   #sandbox
   config.vm.define "sandbox" do |sandbox|
     sandbox.vm.box = "bento/ubuntu-24.04"
-      config.vm.box_version = "202502.21.0"
+    sandbox.vm.box_version = "202502.21.0"
+    sandbox.vm.hostname = "sandbox"
+    # sandbox.vm.synced_folder "~/devsepops", "/home/vagrant/"
+    sandbox.vm.provision "file", source: "~/devsepops", destination: "/home/vagrant/"
+    sandbox.vm.network "forwarded_port", guest: 8000, host: 8001
+    sandbox.vm.network "forwarded_port", guest: 8002, host: 8002
     sandbox.vm.provider "virtualbox" do |vb|
       vb.memory = "2048"
       vb.cpus = "2"

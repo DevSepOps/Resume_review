@@ -7,9 +7,9 @@ from fastapi.security import (
     HTTPBearer,
 )
 
-from users.models import TokenModel,UsersModel
+from app.users.models import TokenModel,UsersModel
 
-from core.database import get_db
+from app.core.database import get_db
 
 from sqlalchemy.orm import Session
 
