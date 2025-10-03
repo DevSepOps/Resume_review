@@ -3,7 +3,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 # from users.models import UsersModel
-from core.database import Base
+from app.core.database import Base
 
 class Resume(Base):
     __tablename__ = "resumes"

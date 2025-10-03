@@ -75,22 +75,14 @@ If you prefer manual setup:
         ├── setup.ps1
         └── README.md -->
 
-### todo
-GitHub Secrets:
-GitHub:
-Settings → Secrets and variables → Actions
- 
-Add:
+### Frontend and backend structure
 
-DOCKER_USERNAME -  Docker Hub username
-
-DOCKER_PASSWORD - Docker Hub password
-
-STAGING_HOST - staging server address
-
-STAGING_USERNAME - Server user
-
-STAGING_SSH_KEY - Private SSH key
+┌─────────────────┐    HTTP Requests    ┌─────────────────┐
+│   Frontend      │ ←────────────────→  │   Backend       │
+│   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
+└─────────────────┘                     └─────────────────┘
+         │                                      │
+         └───────────── API Client ─────────────┘
 
 ### 🤝 Contributing
 Please read our contributing guidelines before submitting pull requests.

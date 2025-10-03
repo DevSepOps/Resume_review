@@ -8,9 +8,9 @@ from sqlalchemy.pool import StaticPool
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from core.database import get_db, Base
-from main import app
-from core.config import settings
+from app.core.database import get_db, Base
+from app.main import app
+from app.core.config import settings
 
 # DB test on sqlite in memory
 TEST_DATABASE_URL = "sqlite:///:memory:"

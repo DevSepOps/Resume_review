@@ -6,12 +6,12 @@ from fastapi import (
     Request
 )
 from fastapi.responses import JSONResponse
-from users.schemas import UserRegisterSchema, UserLoginSchema, UserRefreshTokenSchema
-from users.models import UsersModel, UserRole
+from app.users.schemas import UserRegisterSchema, UserLoginSchema, UserRefreshTokenSchema
+from app.users.models import UsersModel, UserRole
 from sqlalchemy.orm import Session
-from core.database import get_db
+from app.core.database import get_db
 from typing import List
-from auth.jwt_auth import (
+from app.auth.jwt_auth import (
     generate_access_token,
     generate_refresh_token,
     decode_refresh_token,

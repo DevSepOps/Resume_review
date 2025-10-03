@@ -7,12 +7,12 @@ import aiofiles
 from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 
-from core.database import get_db
-from auth.jwt_auth import get_authenticated_user
-from auth.role_auth import get_expert_user
-from users.models import UsersModel, UserRole
-from CV.models import Resume
-from CV.schemas import ResumeUploadResponse, ResumeResponse, ExpertResumeResponse
+from app.core.database import get_db
+from app.auth.jwt_auth import get_authenticated_user
+from app.auth.role_auth import get_expert_user
+from app.users.models import UsersModel, UserRole
+from app.CV.models import Resume
+from app.CV.schemas import ResumeUploadResponse, ResumeResponse, ExpertResumeResponse
 
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 

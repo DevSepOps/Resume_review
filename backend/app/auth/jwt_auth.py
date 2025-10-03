@@ -1,12 +1,12 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasicCredentials, HTTPBearer
-from users.models import UsersModel
-from core.database import get_db
+from app.users.models import UsersModel
+from app.core.database import get_db
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
-from core.config import settings
+from app.core.config import settings
 import jwt
-from auth.token_blacklist import BlacklistedToken  # Import the new model
+from app.auth.token_blacklist import BlacklistedToken  # Import the new model
 
 security = HTTPBearer()
 

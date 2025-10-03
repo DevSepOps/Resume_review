@@ -3,11 +3,11 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from sqlalchemy import or_
 
-from core.database import get_db
-from auth.jwt_auth import get_authenticated_user
-from auth.role_auth import get_admin_user
-from users.models import UsersModel, UserRole
-from admin.schemas import UserRoleUpdate, UserResponse
+from app.core.database import get_db
+from app.auth.jwt_auth import get_authenticated_user
+from app.auth.role_auth import get_admin_user
+from app.users.models import UsersModel, UserRole
+from app.admin.schemas import UserRoleUpdate, UserResponse
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
