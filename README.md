@@ -77,5 +77,5 @@ The Frontend and Backend structure:
          └───────────── API Client ─────────────┘
 
 
-### 🤝 Contributing
+🤝 Contributing
 Please read our contributing guidelines before submitting pull requests.
