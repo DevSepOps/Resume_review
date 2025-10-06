@@ -26,10 +26,11 @@ A secure FastAPI application for resume management and review.
 
 3. **Edit the .env file with your secure values**
 
-POSTGRES_USER=your_secure_username
-POSTGRES_PASSWORD=your_very_strong_password
-JWT_SECRET_KEY=generate_using_python -c "import secrets; print(secrets.token_urlsafe(32))"
-SECRET_KEY=generate_using_python -c "import secrets; print(secrets.token_hex(32))"
+    ```bash
+    POSTGRES_USER="your_secure_username"
+    POSTGRES_PASSWORD="your_very_strong_password"
+    JWT_SECRET_KEY='generate_using_python -c "import secrets; print(secrets.token_urlsafe(32))"'
+    SECRET_KEY='generate_using_python -c "import secrets; print(secrets.token_hex(32))"'
 
 4. **Start the application**
     ```bash
@@ -67,13 +68,14 @@ If you prefer manual setup:
 ### Frontend and backend structure
 
 The Frontend and Backend structure:
-    ```bash
-    ┌─────────────────┐    HTTP Requests    ┌─────────────────┐
-    │   Frontend      │ ←────────────────→  │   Backend       │
-    │   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
-    └─────────────────┘                     └─────────────────┘
-             │                                      │
-             └───────────── API Client ─────────────┘
+```text
+┌─────────────────┐    HTTP Requests    ┌─────────────────┐
+│   Frontend      │ ←────────────────→  │   Backend       │
+│   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
+└─────────────────┘                     └─────────────────┘
+         │                                      │
+         └───────────── API Client ─────────────┘
+
 
 ### 🤝 Contributing
 Please read our contributing guidelines before submitting pull requests.
