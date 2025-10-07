@@ -6,6 +6,11 @@ docker-compose.override.yml
 .idea/
 *.swp
 *.swo
+**/.vagrant/
+**/.docker/
+**/.cache/
+*.bak
+*.tmp
 
 # Logs
 *.log
@@ -15,6 +20,7 @@ logs/
 .env
 .env.*
 !.env.example
+
 
 # Database
 backend/postgres/data/
@@ -42,3 +48,43 @@ frontend/.env.production.local
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
+
+
+.bash_history
+.sudo_as_admin_successful
+
+# ───── Terraform ─────
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.backup
+*.log
+*.plan
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate.backup
+crash.log
+terraform.rc
+.terraformrc
+
+# ───── Ansible ─────
+*.retry
+*.log
+*.out
+*.pyc
+__pycache__/
+inventory.ini
+vault_pass.txt
+group_vars/
+host_vars/
+*.vault
+*.secret
+
+# ───── OS-specific ─────
+.DS_Store
+Thumbs.db
+
+# ───── Secrets ─────
+certs/**
+letsencrypt/**

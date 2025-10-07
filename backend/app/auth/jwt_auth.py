@@ -1,12 +1,12 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasicCredentials, HTTPBearer
-from users.models import UsersModel
-from core.database import get_db
+from app.users.models import UsersModel
+from app.core.database import get_db
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
-from core.config import settings
+from app.core.config import settings
 import jwt
-from auth.token_blacklist import BlacklistedToken  # Import the new model
+from app.auth.token_blacklist import BlacklistedToken  # Import the new model
 
 security = HTTPBearer()
 
@@ -130,3 +130,38 @@ def add_token_to_blacklist(token: str, user_id: int, db: Session):
     ).delete()
     
     db.commit()
+    
+def decode_refresh_token(token: str) -> int:
+    """
+    Decode and validate a refresh token.
+    Returns the user_id if valid, raises HTTPException if not.
+    """
+    try:
+        decoded = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
+        
+        # Ensure token type is refresh
+        if decoded.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type. Expected refresh token."
+            )
+        
+        user_id = decoded.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token payload."
+            )
+        
+        return user_id
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token expired."
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token."
+        )

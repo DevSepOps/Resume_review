@@ -1,0 +1,41 @@
+{
+    "name":"Resume review app",
+    "short_name":"RV",
+    "start_url":".",
+    "display":"standalone",
+    "background_color":"#FFFFFF",
+    "theme_color":"#038F75",
+    "description":"Review your resume by experts",
+    "orientation":"natural",
+    "prefered_related_application":false,
+    "icons":[
+        {
+            "src":"icons/icon-192.png",
+            "size":"192x192",
+            "type":"image/png"
+        },
+        {
+            "src":"icons/icon-512.png",
+            "size":"512x512",
+            "type":"image/png"   
+        },
+        {
+            "src":"icons/icon-maskable-192.png",
+            "size":"192x192",
+            "type":"image/png",
+            "porpuse":"maskable"
+        },
+        {
+            "src":"icons/icon-maskable-512.png",
+            "size":"512x512",
+            "type":"image/png",
+            "porpuse":"maskable"
+
+        },
+        {
+            "src":"icons/icon-192.png",
+            "size":"192x192",
+            "type":"image/png"
+        }
+    ]
+}

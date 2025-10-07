@@ -1,0 +1,12 @@
+---
+- name: "Download the Docker installation script"
+  get_url:
+    url: https://get.docker.com
+    dest: /tmp/get-docker.sh
+    mode: '0755'
+
+- name: "Dry run the Docker installation script"
+  command: sh /tmp/get-docker.sh --dry-run
+
+- name: "Run the Docker installation script"
+  command: sh /tmp/get-docker.sh

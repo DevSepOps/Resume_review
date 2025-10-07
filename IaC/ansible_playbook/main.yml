@@ -1,0 +1,8 @@
+---
+- name: "Installing Docker"
+  hosts: EC2_instance
+  become: yes
+  roles:
+  - docker
+  - docker_file
+  - docker_run

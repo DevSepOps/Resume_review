@@ -1,0 +1,8 @@
+---
+# task file for docker_file
+- name: Copy local file to remote
+  copy:
+    src: ./myfile # specidy the docker compose directory to copy
+    dest: /home/remoteuser/myfile.txt # specify where to land the file
+    owner: remoteuser
+    mode: '0644'

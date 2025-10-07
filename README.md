@@ -26,10 +26,11 @@ A secure FastAPI application for resume management and review.
 
 3. **Edit the .env file with your secure values**
 
-POSTGRES_USER=your_secure_username
-POSTGRES_PASSWORD=your_very_strong_password
-JWT_SECRET_KEY=generate_using_python -c "import secrets; print(secrets.token_urlsafe(32))"
-SECRET_KEY=generate_using_python -c "import secrets; print(secrets.token_hex(32))"
+    ```bash
+    POSTGRES_USER="your_secure_username"
+    POSTGRES_PASSWORD="your_very_strong_password"
+    JWT_SECRET_KEY='generate_using_python -c "import secrets; print(secrets.token_urlsafe(32))"'
+    SECRET_KEY='generate_using_python -c "import secrets; print(secrets.token_hex(32))"'
 
 4. **Start the application**
     ```bash
@@ -63,34 +64,18 @@ If you prefer manual setup:
 
 🐳 Use Docker secrets in production
 
-<!-- ### Project Structure
 
-    ```bash
-        resume-review-api/
-        ├── app/
-        ├── docker-compose.yml
-        ├── Dockerfile.backend
-        ├── env.example
-        ├── setup.sh
-        ├── setup.ps1
-        └── README.md -->
+### Frontend and backend structure
 
-### todo
-GitHub Secrets:
-GitHub:
-Settings → Secrets and variables → Actions
- 
-Add:
+The Frontend and Backend structure:
+```text
+┌─────────────────┐    HTTP Requests    ┌─────────────────┐
+│   Frontend      │ ←────────────────→  │   Backend       │
+│   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
+└─────────────────┘                     └─────────────────┘
+         │                                      │
+         └───────────── API Client ─────────────┘
 
-DOCKER_USERNAME -  Docker Hub username
 
-DOCKER_PASSWORD - Docker Hub password
-
-STAGING_HOST - staging server address
-
-STAGING_USERNAME - Server user
-
-STAGING_SSH_KEY - Private SSH key
-
-### 🤝 Contributing
+🤝 Contributing
 Please read our contributing guidelines before submitting pull requests.

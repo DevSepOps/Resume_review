@@ -1,0 +1,11 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Copy docker-compose.yml
+  copy:
+    src: ./docker-compose.yml # Dcoker-compose src
+    dest: /home/ubuntu/docker-compose.yml # Dcoker-compose dst
+
+- name: Run docker compose
+  shell: docker compose -f /home/ubuntu/docker-compose.yml up -d
+  args:
+    chdir: /home/ubuntu

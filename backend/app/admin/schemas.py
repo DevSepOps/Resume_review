@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Optional
-from users.models import UserRole
+from app.users.models import UserRole
 
 class UserRoleUpdate(BaseModel):
     role: UserRole = Field(

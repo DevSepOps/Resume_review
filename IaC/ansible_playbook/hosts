@@ -1,0 +1,8 @@
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3.12
+
+[ec2_instance]
+Instance_IP ansible_connection=ssh #after running instance insert the IP
+
+[azure_vm]
+Instance_IP ansible_connection=ssh #after running instance insert the IP

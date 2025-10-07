@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
-from users.models import UsersModel, UserRole
-from auth.jwt_auth import get_authenticated_user
+from app.users.models import UsersModel, UserRole
+from app.auth.jwt_auth import get_authenticated_user
 
 async def get_expert_user(
     current_user: UsersModel = Depends(get_authenticated_user)

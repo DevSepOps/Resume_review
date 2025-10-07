@@ -1,0 +1,41 @@
+api:
+  dashboard: true
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+  traefik:
+    address: ":8080"
+
+log:
+  level: INFO
+  filePath: "/var/log/traefik/traefik.log"
+  format: common
+
+providers:
+  docker:
+    exposedByDefault: false
+  file:
+    filename: "/etc/traefik/dynamic.yml"
+
+accessLog:
+  filePath: "/var/log/traefik.log"
+  format: "json"
+
+certificatesResolvers:
+  myresolver:
+    acme:
+      email: example@gmail.com
+      storage: /letsencrypt/acme.json
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+      httpChallenge:
+        entryPoint: web
+
+    #experimental:
+    #  plugins:
+    #    traefik_datadog_tracing:
+    #      moduleName: "github.com/zackzackzackzack/traefik_datadog_tracing"
+    #      version: "v0.0.1"
