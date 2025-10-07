@@ -1,11 +1,52 @@
-version: '3.8'
-
 services:
+
+  traefik:
+    image: traefik:v2.10
+    container_name: resume-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./logs/traefik_access.log:/var/log/traefik.log
+      - ./logs/traefik.log:/var/log/traefik/traefik.log
+      - ./letsencrypt:/letsencrypt
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml
+      - ./secrets/.htpasswd:/etc/traefik/.htpasswd
+      - ./certs:/etc/traefik/certs
+
+    networks:
+      - resume_network
+
+  portainer:
+    image: portainer/portainer-ce:2.27.7
+    container_name: portainer
+    ports:
+      - "9000:9000"
+    networks:
+      - resume_network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.service=ortainer"
+      - "traefik.http.routers.portainer.rule=Host(`devportainer.example.com`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.services.misancms-portainer.loadbalancer.server.port=9000"
+      - "traefik.http.routers.portainer.tls.certresolver=myresolver"
+      - "traefik.http.routers.portainer.tls=true"
+
   postgres:
     image: postgres:15
     container_name: resume_postgres_prod
     env_file:
-      - ./backend/app/.env
+      - ./backend/postgres/db_postgres.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -22,7 +63,11 @@ services:
       retries: 3
 
   backend:
-    image: ${DOCKER_USERNAME}/resume-backend:latest
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.backend
+    # Or pull the image if it is on the registery
+    # image: ${DOCKER_USERNAME}/resume-backend:latest
     container_name: resume_backend_prod
     env_file:
       - .env.production
@@ -36,10 +81,28 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.yourdomain.com`)"
+      - "traefik.http.routers.backend.service=backend"
+      - "traefik.http.routers.backend.rule=Host(`api.yourdomain.com`, `www.api.yourdomain.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.backend.entrypoints=web"
+      - "traefik.http.routers.backend.middlewares=backend-redirectscheme,backend-compress,cors-headers@file"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-secure.rule=Host(`api.yourdomain.com`, `www.api.yourdomain.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.backend-secure.entrypoints=websecure"
+      - "traefik.http.routers.backend-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.backend-secure.tls=true"
+      - "traefik.http.routers.backend-secure.priority=40"
+      - "traefik.http.routers.backend-secure.service=backend"
+      - "traefik.http.middlewares.backend-compress.compress=true"
+      - "traefik.http.middlewares.backend-ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.backend-redirectscheme.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.backend-redirectscheme.redirectscheme.permanent=true"
 
   frontend:
-    image: ${DOCKER_USERNAME}/resume-frontend:latest
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.frontend
+    # Or pull the image if it is on the registery
+    # image: ${DOCKER_USERNAME}/resume-frontend:latest
     container_name: resume_frontend_prod
     depends_on:
       - backend
@@ -48,27 +111,124 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`yourdomain.com`)"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.routers.frontend.rule=Host(`yourdomain.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.middlewares=backend-redirectscheme,backend-compress,cors-headers@file"
+      - "traefik.http.services.frontend.loadbalancer.server.port=8001"
+      - "traefik.http.routers.frontend-secure.rule=Host(`yourdomain.com`) && PathPrefix(`/`)"
+      - "traefik.http.routers.frontend-secure.entrypoints=websecure"
+      - "traefik.http.routers.frontend-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.frontend-secure.tls=true"
+      - "traefik.http.routers.frontend-secure.priority=40"
+      - "traefik.http.routers.frontend-secure.service=frontend"
+      - "traefik.http.middlewares.frontend-compress.compress=true"
+      - "traefik.http.middlewares.frontend-ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.frontend-redirectscheme.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.frontend-redirectscheme.redirectscheme.permanent=true"
 
-  nginx:
-    image: nginx:alpine
-    container_name: resume_nginx_prod
-    ports:
-      - "80:80"
-      - "443:443"
+
+# Moniroting stack
+
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:7.17.15
+    container_name: metricbeat
+    user: root
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-    depends_on:
-      - backend
-      - frontend
+      - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys:/hostfs/sys:ro
+      - /:/hostfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - resume_network
-    restart: unless-stopped
+    restart: always
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTIC_PASSWORD=elasticadmin1234
+      - xpack.security.enabled=true
+        #- xpack.security.http.ssl.enabled=true
+        #- xpack.security.http.ssl.keystore.path=/usr/share/elasticsearch/config/certs/elastic-certificates.p12
+        #- xpack.security.http.ssl.truststore.path=/usr/share/elasticsearch/config/certs/elastic-certificates.p12
+
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+        #- ./certs:/usr/share/elasticsearch/config/certs
+    networks:
+      - resume_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -k -u elastic:elasticadmin1234 http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"'"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.7.1
+    container_name: logstash
+    ports:
+      - "5044:5044"
+    volumes:
+    - ./monitoring/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    networks:
+    - resume_network
+    depends_on:
+      - elasticsearch
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+      #    ports:
+      #      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:3000 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.example.com`, `www.grafana.example.com`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.routers.grafana.middlewares=grafana-redirectscheme, grafana-ratelimit, grafana-compress"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.grafana-secure.rule=Host(`grafana.example.com`, `www.grafana.example.com`)"
+      - "traefik.http.routers.grafana-secure.entrypoints=websecure"
+      - "traefik.http.routers.grafana-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.grafana-secure.tls=true"
+      - "traefik.http.routers.grafana-secure.priority=90"
+      - "traefik.http.routers.grafana-secure.service=grafana"
+      - "traefik.http.middlewares.grafana-compress.compress=true"
+      - "traefik.http.middlewares.grafana-ratelimit.ratelimit.average=5"
+      - "traefik.http.middlewares.grafana-redirectscheme.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.grafana-redirectscheme.redirectscheme.permanent=true"
+
+    networks:
+      - resume_network
+
 
 volumes:
   postgres_data:
+  es_data:
+  grafana-data:
 
 networks:
   resume_network:
     driver: bridge
+    external: true

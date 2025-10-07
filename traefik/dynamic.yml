@@ -1,0 +1,59 @@
+http:
+  routers:
+    dashboard:
+      rule: Host(`traefik.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`) || PathPrefix(`/dashboard/`))
+      entryPoints:
+        - websecure
+      service: api@internal
+
+        #  tracing:
+    #    addInternals: true
+    #    serviceName: traefik
+    #    sampleRate: 0.2
+
+      middlewares:
+        - cors-headers    
+        - auth
+
+      tls:
+        certresolver: myresolver
+
+  middlewares:
+    auth:
+      basicAuth:
+        users:
+          - "user:super_secret_hashed_pass"
+
+    cors-headers:
+      headers:
+        accessControlAllowOriginList:
+          - "*"
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+        accessControlAllowHeaders:
+          - "*"
+        accessControlExposeHeaders:
+          - "Content-Length"
+        accessControlAllowCredentials: true
+
+            #apiVersion: traefik.containo.us/v1alpha1
+            #kind: Middleware
+            #metadata:
+            #    name: my-traefik_datadog_tracing
+            #    namespace: my-namespace
+            #spec:
+            #    plugin:
+            #        traefik_datadog_tracing:
+            #            datadogTracingAgentUrl: http://host.docker.internal:8126
+            #            globalTags:
+            #                test: tag
+            #            pluginName: traefik-dd-trace
+
+          #tls:
+  #  certificates:
+    #    - certFile: "/etc/traefik/certs/fullchain.pem"
+      #    - keyFile: "/etc/traefik/certs/privateKey.pem"
