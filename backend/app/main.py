@@ -24,27 +24,28 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    '''Simple lifespan without auto-migration'''
+    """Simple lifespan without auto-migration"""
     print("🚀 Application starting up...")
-    
+
     try:
         from app.core.database import engine
         from sqlalchemy import text
-        
+
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         print("🔗 Database connection successful")
-        
+
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
         if os.getenv("ENVIRONMENT") == "development":
             raise
-    
+
     print("🎯 Application is ready to handle requests")
-    
+
     yield
-    
+
     print("🛑 Application shutting down...")
+
 
 app = FastAPI(
     lifespan=lifespan,
@@ -61,7 +62,7 @@ app = FastAPI(
     license_info={
         "name": "MIT License",
         "url": "https://choosealicense.com/",
-    }
+    },
 )
 
 # Adding routes to API
@@ -69,9 +70,11 @@ app.include_router(users_routes)
 app.include_router(cv_routes)
 app.include_router(admin_routes)
 
+
 @app.get("/")
 async def root():
     return {"message": "Resume Review API"}
+
 
 # in case of cookie management
 @app.post("/set-cookie", tags=["Cookie management"])
@@ -79,9 +82,11 @@ def set_cookie(response: Response):
     response.set_cookie(key="test", value="somthing")
     return {"message": "Cookies has been set successfully"}
 
+
 @app.get("/get-cookie", tags=["Cookie management"])
 def get_cookie(request: Request):
     return {"Requested cookie": request.cookies.get("test")}
+
 
 # Calculating process time
 @app.middleware("http")
@@ -92,6 +97,7 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -100,15 +106,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     print(exc.__dict__)
     error_response = {
         "error": True,
         "status_code": exc.status_code,
-        "detail": exc.detail
+        "detail": exc.detail,
     }
-    return JSONResponse(status_code =exc.status_code, content=error_response)
+    return JSONResponse(status_code=exc.status_code, content=error_response)
+
 
 @app.exception_handler(RequestValidationError)
 async def http_validation_handler(request, exc):
@@ -116,6 +124,8 @@ async def http_validation_handler(request, exc):
     error_response = {
         "error": True,
         "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
-        "detail": exc.errors()
+        "detail": exc.errors(),
     }
-    return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error_response)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error_response
+    )

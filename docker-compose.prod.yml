@@ -36,7 +36,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.portainer.service=ortainer"
-      - "traefik.http.routers.portainer.rule=Host(`devportainer.example.com`)"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.yourdomain.com`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
       - "traefik.http.services.misancms-portainer.loadbalancer.server.port=9000"
       - "traefik.http.routers.portainer.tls.certresolver=myresolver"
@@ -206,11 +206,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.service=grafana"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.example.com`, `www.grafana.example.com`)"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.yourdomain.com`, `www.grafana.yourdomain.com`)"
       - "traefik.http.routers.grafana.entrypoints=web"
       - "traefik.http.routers.grafana.middlewares=grafana-redirectscheme, grafana-ratelimit, grafana-compress"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-      - "traefik.http.routers.grafana-secure.rule=Host(`grafana.example.com`, `www.grafana.example.com`)"
+      - "traefik.http.routers.grafana-secure.rule=Host(`grafana.yourdomain.com`, `www.grafana.yourdomain.com`)"
       - "traefik.http.routers.grafana-secure.entrypoints=websecure"
       - "traefik.http.routers.grafana-secure.tls.certresolver=myresolver"
       - "traefik.http.routers.grafana-secure.tls=true"
