@@ -1,4 +1,4 @@
-'''In case of need Token Authentication'''
+"""In case of need Token Authentication"""
 
 from fastapi import Depends, HTTPException, status
 
@@ -7,7 +7,7 @@ from fastapi.security import (
     HTTPBearer,
 )
 
-from app.users.models import TokenModel,UsersModel
+from app.users.models import TokenModel, UsersModel
 
 from app.core.database import get_db
 

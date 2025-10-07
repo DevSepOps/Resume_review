@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from app.users.models import UserRole
 
+
 class UserRoleUpdate(BaseModel):
     role: UserRole = Field(
         ...,
@@ -13,8 +14,9 @@ class UserRoleUpdate(BaseModel):
         - candidate: Regular user who can upload resumes
         - expert: Can review all resumes  
         - admin: Full system access with user management
-        """
+        """,
     )
+
 
 class UserResponse(BaseModel):
     id: int
@@ -23,9 +25,10 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     created_date: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class UserListFilters(BaseModel):
     role: Optional[UserRole] = Field(
@@ -37,9 +40,8 @@ class UserListFilters(BaseModel):
         - candidate
         - expert  
         - admin
-        """
+        """,
     )
     is_active: Optional[bool] = Field(
-        None, 
-        description="Filter by active status (true/false)"
+        None, description="Filter by active status (true/false)"
     )

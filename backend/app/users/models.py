@@ -7,22 +7,22 @@ from sqlalchemy import (
     Boolean,
     func,
     DateTime,
-    Enum
+    Enum,
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from passlib.context import CryptContext
+
 # from CV.models import Resume
 
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto"
-)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 class UserRole(enum.Enum):
     CANDIDATE = "candidate"
     EXPERT = "expert"
     ADMIN = "admin"
+
 
 class UsersModel(Base):
     __tablename__ = "users"
@@ -51,6 +51,7 @@ class UsersModel(Base):
     def set_password(self, plain_text: str) -> None:
         """Setting password"""
         self.password = self.hash_password(plain_text)
+
 
 # class TokenModel(Base):
 #     __tablename__ = "tokens"
