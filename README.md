@@ -22,7 +22,7 @@ A modern full-stack project to upload, manage, and review CVs/resumes, showcasin
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/AWS-Light.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/Azure-Light.svg" height="40" />
 </p>
----
+```
 
 ## 📂 Repository Structure (brief)
 
@@ -50,12 +50,12 @@ A modern full-stack project to upload, manage, and review CVs/resumes, showcasin
 ### ⚙️ Frontend and backend structure
 
 <pre>
-                            ┌─────────────────┐    HTTP Requests    ┌─────────────────┐
-                            │    Frontend     │ ←────────────────→  │    Backend      │
-                            │   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
-                            └─────────────────┘                     └─────────────────┘
-                                    │                                      │
-                                    └───────────── API Client ─────────────┘
+                      ┌─────────────────┐    HTTP Requests    ┌─────────────────┐
+                      │    Frontend     │ ←────────────────→  │    Backend      │
+                      │   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
+                      └─────────────────┘                     └─────────────────┘
+                              │                                      │
+                              └───────────── API Client ─────────────┘
 </pre>
 ## ✨ Features & Capabilities
 
