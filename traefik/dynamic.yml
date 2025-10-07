@@ -1,7 +1,7 @@
 http:
   routers:
     dashboard:
-      rule: Host(`traefik.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`) || PathPrefix(`/dashboard/`))
+      rule: Host(`traefik.yourdomain.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`) || PathPrefix(`/dashboard/`))
       entryPoints:
         - websecure
       service: api@internal

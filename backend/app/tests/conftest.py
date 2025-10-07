@@ -22,6 +22,7 @@ engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 @pytest.fixture(scope="function")
 def test_db():
     """Test db fixture"""
@@ -33,19 +34,22 @@ def test_db():
         db.close()
         Base.metadata.drop_all(bind=engine)
 
+
 @pytest.fixture(scope="function")
 def client(test_db):
     """Test client fixture"""
+
     def override_get_db():
         try:
             yield test_db
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
 
 @pytest.fixture
 def sample_user_data():
@@ -55,13 +59,11 @@ def sample_user_data():
         "password": "testpass123",
         "confirm_password": "testpass123",
         "email": "test@example.com",
-        "github": "https://github.com/testuser"
+        "github": "https://github.com/testuser",
     }
+
 
 @pytest.fixture
 def sample_resume_data():
     """Sample resume"""
-    return {
-        "file_name": "test_resume.pdf",
-        "file_size": 1024
-    }
+    return {"file_name": "test_resume.pdf", "file_size": 1024}

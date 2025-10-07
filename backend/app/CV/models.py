@@ -1,9 +1,9 @@
-from sqlalchemy import (
-    ForeignKey, String, Integer, Column, DateTime, func
-)
+from sqlalchemy import ForeignKey, String, Integer, Column, DateTime, func
 from sqlalchemy.orm import relationship
+
 # from users.models import UsersModel
 from app.core.database import Base
+
 
 class Resume(Base):
     __tablename__ = "resumes"
@@ -16,9 +16,6 @@ class Resume(Base):
     mime_type = Column(String, nullable=False)
     created_date = Column(DateTime, server_default=func.now(), nullable=False)
     updated_date = Column(
-        DateTime,
-        server_default=func.now(),
-        server_onupdate=func.now(),
-        nullable=False
+        DateTime, server_default=func.now(), server_onupdate=func.now(), nullable=False
     )
     user = relationship("UsersModel", back_populates="resumes")
