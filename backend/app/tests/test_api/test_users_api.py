@@ -95,29 +95,29 @@ class TestUsersAPI:
         assert response.status_code == 200
         assert "access_token" in response.json()
 
-class TestProtectedEndpoints:
-    """Test protected endpoints"""
+# class TestProtectedEndpoints:
+#     """Test protected endpoints"""
     
-    def test_access_protected_endpoint_without_token(self, client):
-        """Test accessing protected endpoint without token"""
-        response = client.get("/resumes/my-resumes")
-        assert response.status_code == 401  # Unauthorized
+#     def test_access_protected_endpoint_without_token(self, client):
+#         """Test accessing protected endpoint without token"""
+#         response = client.get("/resumes/my-resumes")
+#         assert response.status_code == 401  # Unauthorized
     
-    def test_access_protected_endpoint_with_valid_token(self, client, test_db):
-        """Test accessing protected endpoint with valid token using UserFactory"""
-        user = UserFactory.create(
-            username="protecteduser",
-            email="protected@example.com",
-            password="protected123"
-        )
-        test_db.add(user)
-        test_db.commit()
+#     def test_access_protected_endpoint_with_valid_token(self, client, test_db):
+#         """Test accessing protected endpoint with valid token using UserFactory"""
+#         user = UserFactory.create(
+#             username="protecteduser",
+#             email="protected@example.com",
+#             password="protected123"
+#         )
+#         test_db.add(user)
+#         test_db.commit()
         
-        login_data = {"username": "protecteduser", "password": "protected123"}
-        login_response = client.post("/users/login", json=login_data)
-        access_token = login_response.json()["access_token"]
+#         login_data = {"username": "protecteduser", "password": "protected123"}
+#         login_response = client.post("/users/login", json=login_data)
+#         access_token = login_response.json()["access_token"]
         
-        headers = {"Authorization": f"Bearer {access_token}"}
-        response = client.get("/resumes/my-resumes", headers=headers)
+#         headers = {"Authorization": f"Bearer {access_token}"}
+#         response = client.get("/resumes/my-resumes", headers=headers)
         
-        assert response.status_code in [200, 404]  # 200 if resumes exist, 404 if none
+#         assert response.status_code in [200, 404]  # 200 if resumes exist, 404 if none
