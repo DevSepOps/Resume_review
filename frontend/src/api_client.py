@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 
 
 class ResumeAPI:
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://backend:8000"):
         self.base_url = base_url
         self.access_token = None
         self.refresh_token = None

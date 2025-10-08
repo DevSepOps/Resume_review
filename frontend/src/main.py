@@ -10,24 +10,24 @@ class ResumeApp:
 
     def main(self, page: ft.Page):
         page.title = "Resume Review App"
-        page.theme_mode = ft.ThemeMode.LIGHT
+        page.theme_mode = ft.ThemeMode.DARK
         page.favicon = "icons/favicon.png"
-        page.padding = 20
+        page.padding = 150
         page.vertical_alignment = ft.MainAxisAlignment.CENTER
         page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
         # UI Components
-        self.login_username = ft.TextField(label="Username", width=300)
-        self.login_password = ft.TextField(label="Password", password=True, width=300)
+        self.login_username = ft.TextField(label="Username", width=3500)
+        self.login_password = ft.TextField(label="Password", password=True, width=3500)
         self.login_btn = ft.ElevatedButton("Login", on_click=self.login_clicked)
         self.login_status = ft.Text()
 
-        self.register_username = ft.TextField(label="Username", width=300)
+        self.register_username = ft.TextField(label="Username", width=3500)
         self.register_password = ft.TextField(
-            label="Password", password=True, width=300
+            label="Password", password=True, width=3500
         )
-        self.register_email = ft.TextField(label="Email", width=300)
-        self.register_github = ft.TextField(label="GitHub URL", width=300)
+        self.register_email = ft.TextField(label="Email", width=3500)
+        self.register_github = ft.TextField(label="GitHub URL", width=3500)
         self.register_btn = ft.ElevatedButton(
             "Register", on_click=self.register_clicked
         )
@@ -57,17 +57,28 @@ class ResumeApp:
                     content=ft.Container(
                         content=ft.Column(
                             [
+                                ft.Container(padding=5),
                                 ft.Text(
-                                    "Login to your account",
+                                    value="Login to your account",
                                     size=20,
                                     weight=ft.FontWeight.BOLD,
+                                    text_align=ft.alignment.center
                                 ),
                                 self.login_username,
                                 self.login_password,
-                                self.login_btn,
+                                ft.Row(
+                                    controls=[
+                                        ft.Container(
+                                            content=self.login_btn,
+                                            padding=15,
+                                        ),
+                                    ],
+                                    alignment = ft.MainAxisAlignment.CENTER
+                                ),
                                 self.login_status,
                             ]
-                        )
+                        ),
+
                     ),
                 ),
                 ft.Tab(
@@ -75,6 +86,7 @@ class ResumeApp:
                     content=ft.Container(
                         content=ft.Column(
                             [
+                                ft.Container(padding=5),
                                 ft.Text(
                                     "Create new account",
                                     size=20,
@@ -84,7 +96,15 @@ class ResumeApp:
                                 self.register_password,
                                 self.register_email,
                                 self.register_github,
-                                self.register_btn,
+                                ft.Row(
+                                    controls=[
+                                        ft.Container(
+                                            content=self.register_btn,
+                                            padding=15,
+                                        ),
+                                    ],
+                                    alignment = ft.MainAxisAlignment.CENTER
+                                ),
                                 self.register_status,
                             ]
                         )
@@ -95,6 +115,7 @@ class ResumeApp:
                     content=ft.Container(
                         content=ft.Column(
                             [
+                                ft.Container(padding=5),
                                 ft.Text(
                                     "Manage your resumes",
                                     size=20,
