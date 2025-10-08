@@ -2,7 +2,7 @@
 
 DATE=$(date "+%F_%H-%M-%S")
 BACKUP_DIR=/devsepops/backend/postgres/db_backups/
-DB_CONTAINER=resume_postgres_prod
+DB_CONTAINER=resume_app_db
 DB_NAME="resume_db"
 DB_USER="user"
 DB_PASS="password"

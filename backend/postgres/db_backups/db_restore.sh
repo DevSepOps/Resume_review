@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 BACKUP_FILE=/devsepops/backend/postgres/db_backups/backup_file.sql #backup-file
-DB_CONTAINER=resume_postgres_prod
+DB_CONTAINER=resume_app_db
 DB_NAME="resume_db"
 DB_USER="user"
 DB_PASS="password"

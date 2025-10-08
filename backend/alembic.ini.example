@@ -3,7 +3,7 @@ script_location = alembic
 prepend_sys_path = .
 version_path_separator = os
 
-sqlalchemy.url = postgresql://sepehr:sepehr1234@localhost:5432/resume_db
+sqlalchemy.url = postgresql://user:password@resume_app_db:5432/resume_db
 
 [post_write_hooks]
 
