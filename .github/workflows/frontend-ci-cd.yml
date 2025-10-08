@@ -70,4 +70,4 @@ jobs:
     #       docker rm frontend || true
     #       docker rmi ${{ secrets.DOCKER_USERNAME }}/frontend:latest
     #       docker pull ${{ secrets.DOCKER_USERNAME }}/frontend:latest
-    #       docker compose -f docker-compose.prod.yml --env-file ./backend/app/.env up -d --force-recreate frontend:latest
+    #       docker compose -f docker-compose.prod.yml --env-file ./backend/app/.env up -d --force-recreate frontend:latest 
