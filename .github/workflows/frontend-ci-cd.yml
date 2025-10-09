@@ -41,7 +41,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
-        file: ./frontend/Dockerfile.frontend
+        file: Dockerfile.frontend
         push: false
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest
@@ -51,7 +51,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
-        file: ./frontend/Dockerfile.frontend
+        file: Dockerfile.frontend
         push: true
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest
