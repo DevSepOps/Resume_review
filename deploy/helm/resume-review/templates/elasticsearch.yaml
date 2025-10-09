@@ -1,0 +1,73 @@
+{{- if .Values.monitoring.enabled }}
+{{- if .Values.monitoring.elasticsearch.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+      - name: elasticsearch
+        image: {{ .Values.monitoring.elasticsearch.image }}
+        ports:
+        - containerPort: 9200
+        env:
+        - name: discovery.type
+          value: {{ .Values.monitoring.elasticsearch.env.discovery.type }}
+        - name: ES_JAVA_OPTS
+          value: {{ .Values.monitoring.elasticsearch.env.ES_JAVA_OPTS }}
+        - name: ELASTIC_PASSWORD
+          value: {{ .Values.monitoring.elasticsearch.env.ELASTIC_PASSWORD }}
+        - name: xpack.security.enabled
+          value: {{ .Values.monitoring.elasticsearch.env.xpack.security.enabled }}
+        volumeMounts:
+        - name: elasticsearch-data
+          mountPath: /usr/share/elasticsearch/data
+        resources:
+          {{- toYaml .Values.monitoring.elasticsearch.resources | nindent 12 }}
+      volumes:
+      - name: elasticsearch-data
+        persistentVolumeClaim:
+          claimName: elasticsearch-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: {{ .Values.global.namespace }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.monitoring.elasticsearch.service.port }}
+    targetPort: 9200
+    protocol: TCP
+  selector:
+    app: elasticsearch
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-pvc
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.monitoring.elasticsearch.persistence.size }}
+  {{- if .Values.global.storageClass }}
+  storageClassName: {{ .Values.global.storageClass }}
+  {{- end }}
+{{- end }}
+{{- end }}

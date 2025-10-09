@@ -1,0 +1,98 @@
+{{- if .Values.traefik.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: traefik
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik
+      containers:
+      - name: traefik
+        image: "{{ .Values.traefik.image.repository }}:{{ .Values.traefik.image.tag }}"
+        imagePullPolicy: {{ .Values.traefik.image.pullPolicy }}
+        args:
+          - --api.dashboard=true
+          - --api.insecure=true
+          - --providers.kubernetescrd
+          - --entrypoints.web.address=:80
+          - --entrypoints.websecure.address=:443
+          - --entrypoints.dashboard.address=:8080
+          - --certificatesresolvers.myresolver.acme.email=admin@{{ .Values.global.domain }}
+          - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+          - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+        ports:
+        - name: web
+          containerPort: 80
+        - name: websecure
+          containerPort: 443
+        - name: dashboard
+          containerPort: 8080
+        volumeMounts:
+        - name: letsencrypt
+          mountPath: /letsencrypt
+        - name: traefik-config
+          mountPath: /etc/traefik
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        resources:
+          {{- toYaml .Values.traefik.resources | nindent 12 }}
+      volumes:
+      - name: letsencrypt
+        persistentVolumeClaim:
+          claimName: traefik-letsencrypt-pvc
+      - name: traefik-config
+        configMap:
+          name: traefik-config
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: traefik
+spec:
+  type: {{ .Values.traefik.service.type }}
+  ports:
+  - name: web
+    port: {{ .Values.traefik.service.ports.web }}
+    targetPort: web
+  - name: websecure
+    port: {{ .Values.traefik.service.ports.websecure }}
+    targetPort: websecure
+  - name: dashboard
+    port: {{ .Values.traefik.service.ports.dashboard }}
+    targetPort: dashboard
+  selector:
+    app: traefik
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: traefik-letsencrypt-pvc
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  {{- if .Values.global.storageClass }}
+  storageClassName: {{ .Values.global.storageClass }}
+  {{- end }}
+{{- end }}

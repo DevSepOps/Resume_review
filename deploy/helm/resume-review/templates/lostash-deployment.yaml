@@ -1,0 +1,87 @@
+{{- if .Values.monitoring.enabled }}
+{{- if .Values.monitoring.logstash.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: logstash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+      - name: logstash
+        image: {{ .Values.monitoring.logstash.image }}
+        ports:
+        - containerPort: 5044
+        volumeMounts:
+        - name: logstash-config
+          mountPath: /usr/share/logstash/pipeline/logstash.conf
+          subPath: logstash.conf
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+      volumes:
+      - name: logstash-config
+        configMap:
+          name: logstash-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: {{ .Values.global.namespace }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.monitoring.logstash.service.port }}
+    targetPort: 5044
+    protocol: TCP
+  selector:
+    app: logstash
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  logstash.conf: |
+    input {
+      beats {
+        port => 5044
+      }
+    }
+    filter {
+      if [kubernetes] {
+        mutate {
+          add_field => {
+            "container_name" => "%{[kubernetes][container][name]}"
+            "namespace" => "%{[kubernetes][namespace]}"
+            "pod" => "%{[kubernetes][pod][name]}"
+          }
+        }
+      }
+    }
+    output {
+      elasticsearch {
+        hosts => ["elasticsearch:9200"]
+        user => "elastic"
+        password => "{{ .Values.monitoring.elasticsearch.env.ELASTIC_PASSWORD }}"
+        index => "metricbeat-%{+YYYY.MM.dd}"
+      }
+    }
+{{- end }}
+{{- end }}
