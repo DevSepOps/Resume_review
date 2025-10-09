@@ -40,8 +40,8 @@ jobs:
     - name: Build Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./frontend
-        file: Dockerfile.frontend
+        context: .
+        file: ./frontend/Dockerfile.frontend
         push: false
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest
@@ -50,8 +50,8 @@ jobs:
       if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/')
       uses: docker/build-push-action@v5
       with:
-        context: ./frontend
-        file: Dockerfile.frontend
+        context: .
+        file: ./frontend/Dockerfile.frontend
         push: true
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest

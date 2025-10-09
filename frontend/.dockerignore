@@ -1,0 +1,15 @@
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.coverage
+**/.env
+**/.git
+**/.vscode
+**/tests
+**/test_*
+**/README.md
+**/Dockerfile*
+.gitignore
+README.md
+*.log
+*.tmp
