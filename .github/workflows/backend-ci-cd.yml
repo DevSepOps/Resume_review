@@ -3,11 +3,14 @@ name: Backend CI/CD
 on:
   push:
     branches: [ main, dev ]
+    paths:
+      - 'backend/**'
     tags:
       - 'v*' 
   pull_request:
     branches: [ main, dev ]
-
+    paths:
+      - 'backend/**'
   workflow_dispatch:
   
 jobs:
@@ -97,7 +100,7 @@ jobs:
         file: ./backend/Dockerfile.backend  
         push: false
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/backend:latest
+          ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
 
     - name: Push Docker image with version tag
       if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/')
@@ -107,9 +110,10 @@ jobs:
         file: ./backend/Dockerfile.backend 
         push: true
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/backend:latest
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/backend:${{ env.VERSION }}
+          ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
+          ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:${{ env.VERSION }}
 
+      # Deploy using docker compose
       #   - name: Deploy to remote host via SSH
       # uses: appleboy/ssh-action@v0.1.10
       # with:
@@ -121,6 +125,6 @@ jobs:
       #     cd /app/
       #     docker stop backend || true
       #     docker rm backend || true
-      #     docker rmi ${{ secrets.DOCKER_USERNAME }}/resuem_review/backend:latest
-      #     docker pull ${{ secrets.DOCKER_USERNAME }}/resuem_review/backend:latest
+      #     docker rmi ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
+      #     docker pull ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
       #     docker compose -f docker-compose.prod.yml --env-file ./backend/app/.env up -d --force-recreate backend:latest

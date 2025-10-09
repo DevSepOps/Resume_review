@@ -1,9 +1,9 @@
 # Stage 1: Builder
-FROM python:3.12-slim-bullseye as builder
+FROM python:3.12-slim-bullseye AS builder
 
 WORKDIR /app
 
-COPY ./frontend/requirements.txt .
+COPY ./requirements.txt .
 
 RUN pip install --user --no-cache-dir -r requirements.txt
 
@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
-COPY ./frontend/src/ .
+COPY ./src/ .
 
 EXPOSE 8001
 

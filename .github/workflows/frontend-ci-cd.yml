@@ -44,7 +44,7 @@ jobs:
         file: ./frontend/Dockerfile.frontend
         push: false
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest
+          ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
 
     - name: Push Docker image with version tag
       if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/')
@@ -54,9 +54,10 @@ jobs:
         file: ./frontend/Dockerfile.frontend
         push: true
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:${{ env.VERSION }}
+          ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
+          ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:${{ env.VERSION }}
 
+    # Deploy using docker compose
     # - name: Deploy to remote host via SSH
     #   uses: appleboy/ssh-action@v0.1.10
     #   with:
@@ -68,6 +69,6 @@ jobs:
     #       cd /app/
     #       docker stop frontend || true
     #       docker rm frontend || true
-    #       docker rmi ${{ secrets.DOCKER_USERNAME }}/frontend:latest
-    #       docker pull ${{ secrets.DOCKER_USERNAME }}/frontend:latest
+    #       docker rmi ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
+    #       docker pull ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
     #       docker compose -f docker-compose.prod.yml --env-file ./backend/app/.env up -d --force-recreate frontend:latest 
