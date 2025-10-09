@@ -336,7 +336,7 @@ class ResumeApp:
 
     def show_snackbar(self, message: str):
         """Show snackbar message"""
-        # You can implement snackbar functionality here
+        # You can implement snackbar functionality here optionally
         print(f"Snackbar: {message}")
 
 

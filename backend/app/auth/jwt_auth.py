@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 import jwt
-from app.auth.token_blacklist import BlacklistedToken  # Import the new model
+from app.auth.token_blacklist import BlacklistedToken
 
 security = HTTPBearer()
 
