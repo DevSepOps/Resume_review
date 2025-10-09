@@ -94,7 +94,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./backend
-        file: ./backend/Dockerfile.backend
+        file: Dockerfile.backend
         push: false
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/resume-review/backend:latest
@@ -104,7 +104,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./backend
-        file: ./backend/Dockerfile.backend
+        file: Dockerfile.backend
         push: true
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/resume-review/backend:latest

@@ -140,8 +140,8 @@ services:
     container_name: metricbeat
     user: root
     volumes:
-      # - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
-      - /tmp/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      # - /tmp/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
       - /proc:/hostfs/proc:ro
       - /sys:/hostfs/sys:ro
       - /:/hostfs:ro
