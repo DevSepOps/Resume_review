@@ -14,7 +14,7 @@ docker-compose.override.yml
 
 # Logs
 *.log
-logs/
+logs/*
 
 # Environments
 .env
@@ -24,6 +24,8 @@ logs/
 
 # Database
 backend/postgres/data/
+backend/postgres/db_postgres.env
+backend/alembic.ini
 
 # Uploads
 backend/uploads/

@@ -44,9 +44,9 @@ services:
 
   postgres:
     image: postgres:15
-    container_name: resume_postgres_prod
+    container_name: resume_app_db
     env_file:
-      - ./backend/postgres/db_postgres.env
+      - ./backend/app/.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -64,21 +64,24 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./
       dockerfile: backend/Dockerfile.backend
     # Or pull the image if it is on the registery
-    # image: ${DOCKER_USERNAME}/resume-backend:latest
-    container_name: resume_backend_prod
+    # image: sepehrmdn/resume-review/backend:latest
+    container_name: backend
     env_file:
-      - .env.production
+      - ./backend/app/.env
+    ports: # For test
+      - "8000:8000"
     environment:
-      SQLALCHEMY_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SQLALCHEMY_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@resume_app_db:5432/${POSTGRES_DB}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - resume_network
     restart: unless-stopped
+    # command: alembic upgrade head
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.service=backend"
@@ -99,13 +102,15 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ./
       dockerfile: frontend/Dockerfile.frontend
     # Or pull the image if it is on the registery
-    # image: ${DOCKER_USERNAME}/resume-frontend:latest
-    container_name: resume_frontend_prod
+    # image: sepehrmdn/resume-review/frontend:latest
+    container_name: frontend
     depends_on:
       - backend
+    ports: # For test
+      - "8001:8001"
     networks:
       - resume_network
     restart: unless-stopped
@@ -135,7 +140,8 @@ services:
     container_name: metricbeat
     user: root
     volumes:
-      - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      # - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /tmp/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
       - /proc:/hostfs/proc:ro
       - /sys:/hostfs/sys:ro
       - /:/hostfs:ro
@@ -188,8 +194,8 @@ services:
   grafana:
     image: grafana/grafana-oss:latest
     container_name: grafana
-      #    ports:
-      #      - "3000:3000"
+    ports: # For test
+      - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
@@ -229,8 +235,8 @@ volumes:
   postgres_data:
   es_data:
   grafana-data:
+  portainer_data:
 
 networks:
   resume_network:
     driver: bridge
-    external: true

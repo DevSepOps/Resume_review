@@ -51,6 +51,11 @@ fi
 # Fix permissions
 sudo chown -R vagrant:vagrant /home/vagrant/devsepops
 
+wget -qO act.tar.gz https://github.com/nektos/act/releases/latest/download/act_Linux_x86_64.tar.gz
+sudo tar xf act.tar.gz -C /usr/local/bin act
+act --version
+rm -rf act.tar.gz
+
 echo "✅ Provisioning completed successfully!"
 echo "🐍 Python virtual environment: /home/vagrant/devsepops/venv"
 echo "🐳 Docker installed and configured"

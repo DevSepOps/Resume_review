@@ -1,8 +1,13 @@
 # ResumeReview
 <p align="center">
-  <img src="./Logo.png" alt="Logo" width="250" height="250">
+  <img src="./assets/Logo.png" alt="Logo" width="230" height="230">
 </p>
-
+<p align="center">
+  <img src="./assets/API.png" alt="Logo" width="220" height="220">
+  <img src="./assets/login.png" alt="Logo" width="220" height="220">
+  <img src="./assets/register.png" alt="Logo" width="220" height="220">
+  <img src="./assets/resume.png" alt="Logo" width="220" height="220">
+</p>
 A modern full-stack project to upload, manage, and review CVs/resumes, showcasing DevOps, backend, frontend, infrastructure, and observability best practices.
 
 **Technologies:**
@@ -22,7 +27,7 @@ A modern full-stack project to upload, manage, and review CVs/resumes, showcasin
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/AWS-Light.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/Azure-Light.svg" height="40" />
 </p>
----
+```
 
 ## 📂 Repository Structure (brief)
 
@@ -50,12 +55,12 @@ A modern full-stack project to upload, manage, and review CVs/resumes, showcasin
 ### ⚙️ Frontend and backend structure
 
 <pre>
-                            ┌─────────────────┐    HTTP Requests    ┌─────────────────┐
-                            │    Frontend     │ ←────────────────→  │    Backend      │
-                            │   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
-                            └─────────────────┘                     └─────────────────┘
-                                    │                                      │
-                                    └───────────── API Client ─────────────┘
+                      ┌─────────────────┐    HTTP Requests    ┌─────────────────┐
+                      │    Frontend     │ ←────────────────→  │    Backend      │
+                      │   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
+                      └─────────────────┘                     └─────────────────┘
+                              │                                      │
+                              └───────────── API Client ─────────────┘
 </pre>
 ## ✨ Features & Capabilities
 
@@ -92,7 +97,7 @@ cp backend/app/.env.example backend/app/.env
 # Make sure to edit docker-compose.prod.yml and enter your domain and subdomains
 vim docker-compose.prod.yml
 
-docker compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml --env-file ./backend/app/.env up -d --build 
 ```
 
 Services that should start:
