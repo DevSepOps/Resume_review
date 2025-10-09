@@ -1,0 +1,15 @@
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.coverage
+**/.env
+**/.git
+**/.vscode
+**/tests
+**/test_*
+**/README.md
+**/setup.sh
+**/setup.ps1
+**/Docker-compose.test.yml
+.gitignore
+README.md
