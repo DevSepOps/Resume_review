@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resume-backend
+  labels:
+    app: resume-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: resume-backend
+  template:
+    metadata:
+      labels:
+        app: resume-backend
+    spec:
+      containers:
+        - name: backend
+          image: "sepehrmdn/resume_review/backend:latest"
+          ports:
+            - containerPort: 8000
+          env:
+            - name: SQLALCHEMY_DATABASE_URL
+              value: "postgresql://postgres:postgres@postgres:5432/resume_db"
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: resume-secrets
+                  key: jwt_secret

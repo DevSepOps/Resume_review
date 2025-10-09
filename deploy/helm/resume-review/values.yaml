@@ -1,0 +1,203 @@
+# Global Configuration
+global:
+  namespace: resume-review
+  domain: yourdomain.com
+  storageClass: "standard"
+
+# Traefik Configuration
+traefik:
+  enabled: true
+  image:
+    repository: traefik
+    tag: v2.10
+    pullPolicy: IfNotPresent
+  service:
+    type: LoadBalancer
+    ports:
+      web: 80
+      websecure: 443
+      dashboard: 8080
+  dashboard:
+    enabled: true
+    domain: "traefik.yourdomain.com"
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "100m"
+    limits:
+      memory: "128Mi"
+      cpu: "200m"
+  volumes:
+    logs: true
+    letsencrypt: true
+    certs: true
+
+# Backend Configuration
+backend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: sepehrmdn/resume_review/backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  env:
+    SQLALCHEMY_DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}"
+    DEBUG: "false"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  livenessProbe:
+    path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Frontend Configuration
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: sepehrmdn/resume_review/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8001
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+
+# PostgreSQL Configuration
+postgresql:
+  enabled: true
+  image: postgres:15
+  database: resume_db
+  username: postgres
+  existingSecret: "postgres-secret"
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: "standard"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+
+# Portainer Configuration
+portainer:
+  enabled: true
+  image:
+    repository: portainer/portainer-ce
+    tag: 2.27.7
+  service:
+    type: ClusterIP
+    port: 9000
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+# Monitoring Stack
+monitoring:
+  enabled: true
+  
+  elasticsearch:
+    enabled: true
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.1
+    service:
+      port: 9200
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    env:
+      discovery.type: "single-node"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      ELASTIC_PASSWORD: "elasticadmin1234"
+      xpack.security.enabled: "true"
+
+  logstash:
+    enabled: true
+    image: docker.elastic.co/logstash/logstash:8.7.1
+    service:
+      port: 5044
+
+  grafana:
+    enabled: true
+    image: grafana/grafana-oss:latest
+    service:
+      port: 3000
+    persistence:
+      enabled: true
+      size: 1Gi
+    adminUser: "admin"
+    adminPassword: "admin"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+  metricbeat:
+    enabled: true
+    image: docker.elastic.co/beats/metricbeat:7.17.15
+
+# IngressRoute Configuration
+ingressRoute:
+  enabled: true
+  certResolver: "myresolver"
+  domains:
+    api: "api.yourdomain.com"
+    app: "app.yourdomain.com"
+    grafana: "grafana.yourdomain.com"
+    portainer: "portainer.yourdomain.com"
+
+# Middleware Configuration
+middleware:
+  compress: true
+  ratelimit:
+    backend:
+      average: 100
+      burst: 150
+    frontend:
+      average: 100
+      burst: 150
+    grafana:
+      average: 5
+      burst: 10

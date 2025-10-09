@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: resume-backend
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: resume-backend
+  ports:
+    - port: {{ .Values.service.backendPort }}
+      targetPort: {{ .Values.service.backendPort }}
