@@ -22,7 +22,7 @@ A modern full-stack project to upload, manage, and review CVs/resumes, showcasin
   <img src="https://cdn.worldvectorlogo.com/logos/traefik-1.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/Docker.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/PostgreSQL-Light.svg" height="40" />
-  <img src="https://commons.wikimedia.org/wiki/File:Pytest_logo.svg#/media/File:Pytest_logo.svg" height="40" />
+  <img src="https://github.com/pytest-dev/design/blob/master/pytest_logo/pytest_logo.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/GithubActions-Light.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/AWS-Light.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/Azure-Light.svg" height="40" />
