@@ -96,9 +96,9 @@ jobs:
       run: |
         cd ./backend
         docker build -t ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:${{ env.VERSION }} -f Dockerfile.backend .
-        git push ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:${{ env.VERSION }}
-        git tag ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:${{ env.VERSION }} ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
-        git push ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
+        docker push ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:${{ env.VERSION }}
+        docker tag ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:${{ env.VERSION }} ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
+        docker push ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
       # # tests
       # docker build -t ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest -f Dockerfile.backend .
       # docker push ${{ secrets.DOCKER_USERNAME }}/resume_review-backend:latest
