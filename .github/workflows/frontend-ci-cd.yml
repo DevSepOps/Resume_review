@@ -17,10 +17,18 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/') || github.event_name == 'pull_request'
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        sparse-checkout: |
+          frontend/
+        sparse-checkout-cone-mode: false
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
@@ -37,26 +45,39 @@ jobs:
           echo "VERSION=none" >> $GITHUB_ENV
         fi
 
-    - name: Build Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./frontend/Dockerfile.frontend
-        push: false
-        tags: |
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest
-
-    - name: Push Docker image with version tag
+    - name: Build and Push Docker image with version
       if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/')
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./frontend/Dockerfile.frontend
-        push: true
-        tags: |
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:latest
-          ${{ secrets.DOCKER_USERNAME }}/resume-review/frontend:${{ env.VERSION }}
+      run: |
+        cd ./frontend
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:${{ env.VERSION }} -f Dockerfile.frontend .
+        git push ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:${{ env.VERSION }}
+        git tag ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:${{ env.VERSION }} ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
+        git push ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
+      # # tests
+      # docker build -t ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest -f Dockerfile.frontend .
+      # docker push ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
 
+    # - name: Build Docker image
+    #   uses: docker/build-push-action@v3
+    #   with:
+    #     context: .
+    #     file: Dockerfile.frontend
+    #     push: false
+    #     tags: |
+    #       ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
+
+    # - name: Push Docker image with version tag
+    #   if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/')
+    #   uses: docker/build-push-action@v3
+    #   with:
+    #     context: ./frontend
+    #     file: Dockerfile.frontend
+    #     push: true
+    #     tags: |
+    #       ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
+    #       ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:${{ env.GITHUB_ENV }}
+
+    # Deploy using docker compose
     # - name: Deploy to remote host via SSH
     #   uses: appleboy/ssh-action@v0.1.10
     #   with:
@@ -68,6 +89,6 @@ jobs:
     #       cd /app/
     #       docker stop frontend || true
     #       docker rm frontend || true
-    #       docker rmi ${{ secrets.DOCKER_USERNAME }}/frontend:latest
-    #       docker pull ${{ secrets.DOCKER_USERNAME }}/frontend:latest
+    #       docker rmi ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
+    #       docker pull ${{ secrets.DOCKER_USERNAME }}/resume_review-frontend:latest
     #       docker compose -f docker-compose.prod.yml --env-file ./backend/app/.env up -d --force-recreate frontend:latest 

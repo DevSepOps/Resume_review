@@ -64,8 +64,8 @@ services:
 
   backend:
     build:
-      context: ./
-      dockerfile: backend/Dockerfile.backend
+      context: ./backend
+      dockerfile: ./Dockerfile.backend
     # Or pull the image if it is on the registery
     # image: sepehrmdn/resume-review/backend:latest
     container_name: backend
@@ -102,8 +102,8 @@ services:
 
   frontend:
     build:
-      context: ./
-      dockerfile: frontend/Dockerfile.frontend
+      context: ./frontend
+      dockerfile: ./Dockerfile.frontend
     # Or pull the image if it is on the registery
     # image: sepehrmdn/resume-review/frontend:latest
     container_name: frontend

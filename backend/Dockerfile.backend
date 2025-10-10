@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.12-slim-bullseye as builder
+FROM python:3.12-slim-bullseye AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./backend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Stage 2: Runtime
@@ -25,9 +25,8 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
-COPY ./backend/alembic.ini .
-COPY ./backend/alembic/ alembic/
-COPY ./backend/app/ app/
+COPY alembic/ alembic/
+COPY app/ app/
 
 RUN mkdir -p uploads/resumes
 
@@ -36,6 +35,52 @@ EXPOSE 8000
 RUN echo '#!/bin/bash\n\
 set -e\n\
 cd /app\n\
+cat > alembic.ini << EOL\n\
+[alembic]\n\
+script_location = alembic\n\
+prepend_sys_path = .\n\
+version_path_separator = os\n\
+\n\
+sqlalchemy.url = postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@resume_app_db:5432/${POSTGRES_DB}\n\
+\n\
+[post_write_hooks]\n\
+\n\
+[loggers]\n\
+keys = root,sqlalchemy,alembic\n\
+\n\
+[handlers]\n\
+keys = console\n\
+\n\
+[formatters]\n\
+keys = generic\n\
+\n\
+[logger_root]\n\
+level = WARN\n\
+handlers = console\n\
+qualname =\n\
+\n\
+[logger_sqlalchemy]\n\
+level = WARN\n\
+handlers =\n\
+qualname = sqlalchemy.engine\n\
+\n\
+[logger_alembic]\n\
+level = INFO\n\
+handlers =\n\
+qualname = alembic\n\
+\n\
+[handler_console]\n\
+class = StreamHandler\n\
+args = (sys.stderr,)\n\
+level = NOTSET\n\
+formatter = generic\n\
+\n\
+[formatter_generic]\n\
+format = %(levelname)-5.5s [%(name)s] %(message)s\n\
+datefmt = %H:%M:%S\n\
+EOL\n\
+\n\
+echo "Generated alembic.ini with environment variables"\n\
 echo "Waiting for database..."\n\
 until pg_isready -h resume_app_db -p 5432 -U $POSTGRES_USER; do\n\
   sleep 2\n\
