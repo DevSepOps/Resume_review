@@ -1,0 +1,288 @@
+# Resume Review - Docker Swarm CORE stack (proxy, db, migrate, backend, frontend).
+# Monitoring + Portainer live in docker-stack.monitoring.yml (deployed as a second stack).
+#
+#   set -a; . ./stack.env; set +a
+#   docker stack deploy --with-registry-auth -c docker-stack.yml resume
+#
+# Notes on `docker stack deploy` limitations (it ignores: build, depends_on,
+# container_name, restart, security_opt, tmpfs short syntax, profiles):
+#  * ordering is handled by healthchecks + the `migrate` job + restart policies;
+#  * `no-new-privileges` cannot be set on swarm services (security_opt ignored);
+#    cap_drop / read_only / non-root are still applied.
+#  * variables are interpolated from the SHELL environment (not from a .env file).
+# No top-level `version:` key (obsolete; the Compose Specification is versionless).
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    environment:
+      CONTAINERS: "1"
+      NETWORKS: "1"
+      SERVICES: "1"
+      TASKS: "1"
+      NODES: "1"
+      INFO: "1"
+      POST: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [socket]
+    cap_drop: [ALL]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2375/_ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]    # needs the manager API (services/tasks/nodes)
+      restart_policy: {condition: any}
+      resources:
+        limits: {cpus: "0.25", memory: 64M}
+
+  proxy:
+    image: traefik:v3.6
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        sed -e "s|__ACME_EMAIL__|$${ACME_EMAIL}|g"
+        -e "s|__ACME_CA_SERVER__|$${ACME_CA_SERVER}|g"
+        /etc/traefik/traefik.yml.tmpl > /tmp/traefik.yml
+        && exec traefik --configFile=/tmp/traefik.yml
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+      ACME_CA_SERVER: ${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+    ports:
+      - {target: 80, published: 80, protocol: tcp, mode: host}
+      - {target: 443, published: 443, protocol: tcp, mode: host}
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    volumes:
+      - {type: tmpfs, target: /tmp}
+      - traefik_letsencrypt:/letsencrypt
+    configs:
+      - source: traefik_static
+        target: /etc/traefik/traefik.yml.tmpl
+      - source: traefik_dynamic
+        target: /etc/traefik/dynamic.yml
+    secrets:
+      - source: traefik_htpasswd
+        target: /etc/traefik/secrets/htpasswd
+    networks: [public, socket]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping", "--configFile=/tmp/traefik.yml"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      replicas: 1                              # ACME storage (acme.json) is single-writer
+      placement:
+        constraints: [node.role == manager]
+      update_config: {order: stop-first, failure_action: rollback}   # host-mode ports: cannot overlap
+      restart_policy: {condition: any}
+      resources:
+        limits: {cpus: "0.5", memory: 256M}
+      labels:
+        traefik.enable: "true"
+        traefik.swarm.network: resume_public
+        traefik.http.routers.dashboard.rule: Host(`${TRAEFIK_DOMAIN}`)
+        traefik.http.routers.dashboard.entrypoints: websecure
+        traefik.http.routers.dashboard.service: api@internal
+        traefik.http.routers.dashboard.middlewares: dashboard-auth@file,rate-limit-ops@file
+        # required by Traefik for swarm even when the service is api@internal-only:
+        traefik.http.services.proxy-dummy.loadbalancer.server.port: "8080"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - {type: tmpfs, target: /tmp}
+      - {type: tmpfs, target: /run/postgresql}
+    networks: [internal]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.db == true]   # pins the local volume's node
+      update_config: {order: stop-first}
+      restart_policy: {condition: any}
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+
+  # One-shot job: applies Alembic migrations, exits 0, and is not restarted
+  # (on-failure only). Re-runs whenever its spec (image TAG) changes.
+  migrate:
+    image: docker.io/sepehrmdn/resume-review-backend:${TAG:?set TAG}
+    entrypoint: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      RUN_MIGRATIONS: "true"
+      HOME: /tmp
+    read_only: true
+    cap_drop: [ALL]
+    volumes:
+      - {type: tmpfs, target: /tmp}
+    networks: [internal]
+    logging: *default-logging
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 5s, max_attempts: 10}
+      resources:
+        limits: {cpus: "0.5", memory: 256M}
+
+  backend:
+    image: docker.io/sepehrmdn/resume-review-backend:${TAG:?set TAG}
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY (>=32 chars)}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://${APP_DOMAIN}}
+      UPLOAD_DIR: /app/data/uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      # backend has no host port; only the proxy can reach it, so trust its X-Forwarded-* headers
+      FORWARDED_ALLOW_IPS: "*"
+      RUN_MIGRATIONS: "false"          # the `migrate` job owns schema changes (avoids replica races)
+      DB_WAIT_TIMEOUT: "120"
+      HOME: /tmp
+    read_only: true
+    cap_drop: [ALL]
+    volumes:
+      - backend_uploads:/app/data/uploads
+      - {type: tmpfs, target: /tmp}
+    networks: [public, internal]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    deploy:
+      replicas: 2
+      placement:
+        # `backend_uploads` is a node-local volume: both replicas must land on the node that holds it.
+        constraints: [node.labels.uploads == true]
+      update_config: {order: start-first, failure_action: rollback, monitor: 20s}
+      rollback_config: {order: start-first}
+      restart_policy: {condition: any, delay: 5s}
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+      labels:
+        traefik.enable: "true"
+        traefik.swarm.network: resume_public
+        traefik.http.services.backend.loadbalancer.server.port: "8000"
+        traefik.http.routers.backend.rule: Host(`${API_DOMAIN}`) && !Path(`/ready`)
+        traefik.http.routers.backend.entrypoints: websecure
+        traefik.http.routers.backend.service: backend
+        traefik.http.routers.backend.middlewares: rate-limit-api@file,body-limit@file
+        traefik.http.routers.backend-auth.rule: Host(`${API_DOMAIN}`) && (Path(`/users/login`) || Path(`/users/register`) || Path(`/users/refresh_token`))
+        traefik.http.routers.backend-auth.priority: "100"
+        traefik.http.routers.backend-auth.entrypoints: websecure
+        traefik.http.routers.backend-auth.service: backend
+        traefik.http.routers.backend-auth.middlewares: rate-limit-auth@file,body-limit@file
+
+  frontend:
+    image: docker.io/sepehrmdn/resume-review-frontend:${TAG:?set TAG}
+    environment:
+      BACKEND_URL: http://backend:8000
+      FLET_HOST: 0.0.0.0
+      FLET_PORT: "8001"
+      FLET_SECRET_KEY: ${FLET_SECRET_KEY:?set FLET_SECRET_KEY}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      UPLOAD_TMP_DIR: /tmp/uploads
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-15}
+      HOME: /tmp
+    read_only: true
+    cap_drop: [ALL]
+    volumes:
+      - {type: tmpfs, target: /tmp}
+      - {type: tmpfs, target: /app/assets/downloads}
+    networks: [public]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8001/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 2
+      update_config: {order: start-first, failure_action: rollback, monitor: 20s}
+      rollback_config: {order: start-first}
+      restart_policy: {condition: any, delay: 5s}
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+      labels:
+        traefik.enable: "true"
+        traefik.swarm.network: resume_public
+        traefik.http.routers.frontend.rule: Host(`${APP_DOMAIN}`)
+        traefik.http.routers.frontend.entrypoints: websecure
+        traefik.http.routers.frontend.service: frontend
+        traefik.http.routers.frontend.middlewares: rate-limit-default@file,body-limit@file
+        traefik.http.services.frontend.loadbalancer.server.port: "8001"
+        traefik.http.services.frontend.loadbalancer.sticky.cookie.name: rr_affinity
+        traefik.http.services.frontend.loadbalancer.sticky.cookie.httpOnly: "true"
+        traefik.http.services.frontend.loadbalancer.sticky.cookie.secure: "true"
+        traefik.http.services.frontend.loadbalancer.sticky.cookie.sameSite: lax
+
+configs:
+  # Swarm configs are immutable: bump CFG_REV in stack.env after editing a file.
+  traefik_static:
+    name: resume_traefik_static_${CFG_REV:-1}
+    file: ./traefik/traefik.yml
+  traefik_dynamic:
+    name: resume_traefik_dynamic_${CFG_REV:-1}
+    file: ../docker/proxy/dynamic.yml
+
+secrets:
+  traefik_htpasswd:
+    name: resume_traefik_htpasswd_${CFG_REV:-1}
+    file: ./secrets/htpasswd
+
+networks:
+  public:
+    name: resume_public
+    driver: overlay
+    attachable: false
+  internal:
+    name: resume_internal
+    driver: overlay
+    internal: true
+  socket:
+    name: resume_socket
+    driver: overlay
+    internal: true
+
+volumes:
+  postgres_data:
+  backend_uploads:
+    # Local driver => per-node. For multi-node uploads use NFS instead, e.g.:
+    # driver_opts: {type: nfs, o: "addr=10.0.0.5,rw,nfsvers=4", device: ":/exports/resume-uploads"}
+  traefik_letsencrypt:
