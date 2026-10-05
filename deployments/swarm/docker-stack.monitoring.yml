@@ -1,0 +1,196 @@
+# Resume Review - Docker Swarm MONITORING + OPS stack (Elastic stack, Grafana, Portainer).
+# Deploy AFTER the core stack (it joins the core stack's `resume_public` overlay):
+#
+#   set -a; . ./stack.env; set +a
+#   docker stack deploy --with-registry-auth -c docker-stack.monitoring.yml resume-mon
+#
+# Elasticsearch needs on the node:  sysctl -w vm.max_map_count=262144  (see runbook).
+# No top-level `version:` key (obsolete). Provisioning files come from
+# ../docker/monitoring (shared with Compose) via swarm `configs`.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: ${ES_JAVA_OPTS:--Xms512m -Xmx512m}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD}
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+    cap_drop: [ALL]
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks: [monitoring]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -u elastic:$$ELASTIC_PASSWORD http://localhost:9200/_cluster/health | grep -Eq '\"status\":\"(green|yellow)\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.monitoring == true]
+      restart_policy: {condition: any}
+      resources:
+        limits: {cpus: "1.5", memory: 1536M}
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.17.0
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD}
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
+      XPACK_MONITORING_ENABLED: "false"
+    cap_drop: [ALL]
+    configs:
+      - source: logstash_conf
+        target: /usr/share/logstash/pipeline/logstash.conf
+    volumes:
+      - logstash_data:/usr/share/logstash/data
+    networks: [monitoring]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9600/ >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.monitoring == true]
+      restart_policy: {condition: any, delay: 10s}
+      resources:
+        limits: {cpus: "1.0", memory: 768M}
+
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.17.0
+    user: root
+    command: ["metricbeat", "-e", "--strict.perms=false", "--system.hostfs=/hostfs"]
+    cap_drop: [ALL]
+    cap_add: [DAC_READ_SEARCH, SYS_PTRACE]
+    configs:
+      - source: metricbeat_conf
+        target: /usr/share/metricbeat/metricbeat.yml
+        mode: 0644
+    volumes:
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks: [monitoring]
+    logging: *default-logging
+    deploy:
+      mode: global                              # one collector per node
+      restart_policy: {condition: any, delay: 10s}
+      resources:
+        limits: {cpus: "0.5", memory: 256M}
+
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_DOMAIN}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD}
+    read_only: true
+    cap_drop: [ALL]
+    configs:
+      - source: grafana_datasource
+        target: /etc/grafana/provisioning/datasources/datasource.yml
+      - source: grafana_dashboard_provider
+        target: /etc/grafana/provisioning/dashboards/dashboard.yml
+      - source: grafana_dashboard_metricbeat
+        target: /etc/grafana/dashboards/metricbeat-system.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - {type: tmpfs, target: /tmp}
+    networks: [public, monitoring]
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.labels.monitoring == true]
+      restart_policy: {condition: any, delay: 10s}
+      resources:
+        limits: {cpus: "0.5", memory: 384M}
+      labels:
+        traefik.enable: "true"
+        traefik.swarm.network: resume_public
+        traefik.http.routers.grafana.rule: Host(`${GRAFANA_DOMAIN}`)
+        traefik.http.routers.grafana.entrypoints: websecure
+        traefik.http.routers.grafana.service: grafana
+        traefik.http.routers.grafana.middlewares: rate-limit-ops@file
+        traefik.http.services.grafana.loadbalancer.server.port: "3000"
+
+  portainer:
+    image: portainer/portainer-ce:2.27.7
+    volumes:
+      # Root-equivalent access to the Docker API; restricted to a manager node.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks: [public]
+    logging: *default-logging
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy: {condition: any}
+      resources:
+        limits: {cpus: "0.5", memory: 256M}
+      labels:
+        traefik.enable: "true"
+        traefik.swarm.network: resume_public
+        traefik.http.routers.portainer.rule: Host(`${PORTAINER_DOMAIN}`)
+        traefik.http.routers.portainer.entrypoints: websecure
+        traefik.http.routers.portainer.service: portainer
+        traefik.http.routers.portainer.middlewares: rate-limit-ops@file
+        traefik.http.services.portainer.loadbalancer.server.port: "9000"
+
+configs:
+  logstash_conf:
+    name: resume_logstash_conf_${CFG_REV:-1}
+    file: ../docker/monitoring/logstash/logstash.conf
+  metricbeat_conf:
+    name: resume_metricbeat_conf_${CFG_REV:-1}
+    file: ../docker/monitoring/metricbeat/metricbeat.yml
+  grafana_datasource:
+    name: resume_grafana_ds_${CFG_REV:-1}
+    file: ../docker/monitoring/grafana/provisioning/datasources/datasource.yml
+  grafana_dashboard_provider:
+    name: resume_grafana_dashprov_${CFG_REV:-1}
+    file: ../docker/monitoring/grafana/provisioning/dashboards/dashboard.yml
+  grafana_dashboard_metricbeat:
+    name: resume_grafana_dash_mb_${CFG_REV:-1}
+    file: ../docker/monitoring/grafana/dashboards/metricbeat-system.json
+
+networks:
+  public:
+    name: resume_public
+    external: true
+  monitoring:
+    name: resume_monitoring
+    driver: overlay
+    internal: true
+
+volumes:
+  es_data:
+  logstash_data:
+  grafana_data:
+  portainer_data:

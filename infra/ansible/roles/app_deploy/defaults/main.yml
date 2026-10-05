@@ -1,0 +1,25 @@
+---
+deploy_user: deploy
+app_repo_url: https://github.com/DevSepOps/Resume_review.git
+app_version: main
+app_dir: /opt/resume-review
+app_compose_subdir: deployments/docker
+compose_profiles: []
+image_tag: latest # written to TAG in .env
+backend_image: docker.io/sepehrmdn/resume-review-backend
+frontend_image: docker.io/sepehrmdn/resume-review-frontend
+app_environment: production
+app_domain: app.example.com
+api_domain: api.example.com
+grafana_domain: grafana.example.com
+traefik_domain: traefik.example.com
+portainer_domain: portainer.example.com
+acme_email: ops@example.com
+acme_ca_server: https://acme-v02.api.letsencrypt.org/directory
+cors_origins: "https://{{ app_domain }}"
+grafana_admin_user: admin
+postgres_user: resume_review
+postgres_db: resume_review
+# Extra KEY: value pairs appended to .env (e.g. GRAFANA_ADMIN_USER). Secrets must come from vault vars.
+app_env_extra: {}
+app_wait_timeout: 180

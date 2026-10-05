@@ -1,0 +1,62 @@
+# Traefik v3 DYNAMIC (file provider) configuration, shared by Compose and Swarm.
+# Routers/services come from container labels; this file only holds shared
+# middlewares and TLS options. CORS is intentionally NOT handled here: the
+# backend owns it via CORS_ORIGINS (a wildcard origin with credentials is invalid).
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: false
+        forceSTSHeader: true
+        contentTypeNosniff: true
+        frameDeny: true
+        browserXssFilter: false          # legacy header, deprecated by browsers
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
+        customResponseHeaders:
+          Server: ""
+          X-Powered-By: ""
+
+    compress:
+      compress: {}
+
+    # Per-client-IP limits. Behind another LB/CDN set ipStrategy.depth accordingly.
+    rate-limit-default:
+      rateLimit:
+        average: 100
+        period: 1s
+        burst: 200
+    rate-limit-api:
+      rateLimit:
+        average: 20
+        period: 1s
+        burst: 40
+    rate-limit-auth:                     # login / register / refresh brute-force protection
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 5
+    rate-limit-ops:                      # grafana / portainer / traefik dashboard
+      rateLimit:
+        average: 10
+        period: 1s
+        burst: 20
+
+    # Buffer request bodies and refuse > ~11 MiB (backend MAX_UPLOAD_MB=10 + multipart overhead).
+    body-limit:
+      buffering:
+        maxRequestBodyBytes: 11534336
+        memRequestBodyBytes: 1048576
+
+    dashboard-auth:
+      basicAuth:
+        usersFile: /etc/traefik/secrets/htpasswd   # bcrypt: htpasswd -nbB admin 'password'
+        realm: traefik
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      sniStrict: true

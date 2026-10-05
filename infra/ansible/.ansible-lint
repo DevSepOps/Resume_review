@@ -1,0 +1,7 @@
+---
+profile: production
+exclude_paths:
+  - inventories/**/group_vars/**/vault.yml
+skip_list:
+  # deploy_user, app_*, image_tag, ... are deliberately shared across roles via group_vars.
+  - var-naming[no-role-prefix]

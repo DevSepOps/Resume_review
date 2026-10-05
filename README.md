@@ -27,179 +27,75 @@ A modern full-stack project to upload, manage, and review CVs/resumes, showcasin
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/AWS-Light.svg" height="40" />
   <img src="https://github.com/tandpfun/skill-icons/blob/main/icons/Azure-Light.svg" height="40" />
 </p>
+
+## ✨ What it does
+
+- **Candidates** register, upload PDF resumes (validated by content, max 10 MB), and list, download or delete them.
+- **Experts** review every uploaded resume.
+- **Admins** manage roles and account activation, and see platform stats. The first admin is created with a CLI, not an HTTP route.
+- Animated Flet UI: a twinkling-particle login and a gradient navigation bar that adapts to the user's role.
+
+## 🏗 Architecture
+
+```
+Internet ─► Traefik v3 (TLS, rate limits, secure headers)
+              ├─► frontend  (Flet web, per-session state, server-side tokens)
+              │        └─────────► backend (FastAPI, Lich architecture) ─► PostgreSQL 16
+              └─► backend   (public API)            └─ uploads volume
+optional: Metricbeat → Logstash → Elasticsearch ← Grafana  ·  Portainer
 ```
 
-## 📂 Repository Structure (brief)
+Full picture: [docs/architecture/system-overview.md](docs/architecture/system-overview.md).
+Interface contract (API, environment variables, ports, images): [docs/architecture/contracts.md](docs/architecture/contracts.md).
+
+## 📂 Repository layout
 
 ```
-.
-├── .github
-│   └── workflows
-│       └── ci.yml
-├── backend
-│   ├── app
-│   ├── requirements.txt
-│   └── (other backend modules)
-├── frontend
-│   └── (Flet UI application)
-├── IaC
-│   └── (Terraform and Ansible modules / configs)
-├── monitoring
-│   └── (ELK+Grafana / metrics scaffolding)
-├── traefik
-│   └── dynamic configuration, middleware rules
-├── docker-compose.prod.yml
-├── LICENSE
-└── README.md
+backend/                FastAPI — app/{cmd,internal/{entities,services,ports,adapters,dto,validators},api/http,pkg}
+  migrations/           Alembic
+frontend/               Flet — src/{app,config,shared,features/{auth,resumes,review,admin}}
+deployments/
+  docker/               docker-compose.yml, Dockerfiles, Traefik (proxy/), monitoring/
+  swarm/                docker-stack.yml (+ monitoring stack)
+  helm/resume-review/   Kubernetes chart
+infra/
+  terraform/            modules (aws/azure network + compute), envs/dev, envs/dev-azure
+  ansible/              roles common, docker, app_deploy
+  sandbox/              Vagrant dev VM
+docs/                   architecture, features, runbooks, troubleshooting, onboarding
+agentlog.md             change log
 ```
-### ⚙️ Frontend and backend structure
 
-<pre>
-                      ┌─────────────────┐    HTTP Requests    ┌─────────────────┐
-                      │    Frontend     │ ←────────────────→  │    Backend      │
-                      │   (Flet UI)     │    JSON Responses   │   (FastAPI)     │
-                      └─────────────────┘                     └─────────────────┘
-                              │                                      │
-                              └───────────── API Client ─────────────┘
-</pre>
-## ✨ Features & Capabilities
-
-- Backend API with **FastAPI** for authentication, resume upload, metadata management  
-- Frontend UI built in **Flet** (Python-based)  
-- SandBox: Vagrant as IaC and Virtualbox as virtualization for testing
-- Docker / Docker Compose setup for local development  
-- CI/CD pipeline: tests, builds, and Docker image pushes  
-- Infrastructure-as-Code (IaC) examples with Terraform modules for both AWS and Azure
-- Configure management: Ansible playbooks
-- Reverse-proxy and routing via **Traefik**  
-- Observability & logging stack (Elasticsearch + metricbeats + Logstash + Grafana)  
-
----
-
-## 🚀 Quick Start (Local Development)
-
-### Prerequisites
-
-- Docker & Docker Compose  
-- Python 3.12+  
-- Git  
-
-### Setup & Run
+## 🚀 Quick start
 
 ```bash
-git clone https://github.com/DevSepOps/Resume_review.git
-cd Resume_review
+# tests
+cd backend  && pip install -r requirements-dev.txt && pytest
+cd frontend && pip install -r requirements-dev.txt && pytest
 
-# Copy your environment file and configure it
-cp backend/app/.env.example backend/app/.env
-# Edit .env with your DB url, JWT secret, etc.
-
-# Make sure to edit docker-compose.prod.yml and enter your domain and subdomains
-vim docker-compose.prod.yml
-
-docker compose -f docker-compose.prod.yml --env-file ./backend/app/.env up -d --build 
+# full stack
+cd deployments/docker
+cp .env.example .env                                   # replace every CHANGE_ME
+cp proxy/secrets/htpasswd.example proxy/secrets/htpasswd
+docker compose up -d --build                           # add --profile monitoring --profile ops for extras
+docker compose exec backend python -m app.cmd.create_admin --username admin --email admin@example.com
 ```
 
-Services that should start:
+Local setup without real DNS: [docs/onboarding/dev-setup.md](docs/onboarding/dev-setup.md).
 
-- **backend** (FastAPI)  
-- **frontend** (Flet UI)  
-- **postgres** database  
-- **traefik** (reverse-proxy) 
-- **Portainer** (Docker containers and images management)  
-- **ELK Stack + Grafana** (Monitoring Stack)  
+## 📦 Deploy
 
-You can access:
+| Target | Guide |
+|--------|-------|
+| Single VM (Docker Compose) | [docs/runbooks/infra/compose-deploy.md](docs/runbooks/infra/compose-deploy.md) |
+| Docker Swarm | [docs/runbooks/infra/swarm-deploy.md](docs/runbooks/infra/swarm-deploy.md) |
+| Kubernetes (Helm) | [docs/runbooks/infra/helm-deploy.md](docs/runbooks/infra/helm-deploy.md) |
+| New VM on AWS/Azure (Terraform + Ansible) | [docs/runbooks/infra/provision-vm.md](docs/runbooks/infra/provision-vm.md) |
+| CI/CD (GitHub Actions, tag → deploy) | [docs/runbooks/infra/ci-cd.md](docs/runbooks/infra/ci-cd.md) |
 
-- Backend API: `http://api.yourdomain` (OpenAPI docs under `/docs`)  
-- Frontend: `http://yourdomain`
-- Traefik `http://traefik.yourdomain/dashboard/`  
-- Grafana `http://grafana.yourdomain/`  
+## 🤝 Contributing
 
----
-
-## 🛠 Environment Variables
-
-In `backend/app/.env`, configure:
-
-```
-SQLALCHEMY_DATABASE_URL=postgresql://{user}:{password}@postgres:5432/{db_name}
-POSTGRES_USER="user"
-POSTGRES_PASSWORD="pass"
-POSTGRES_DB="db_name"
-JWT_SECRET_KEY=your_jwt_secret
-SECRET_KEY=some_secret_key
-DEBUG=True
-ENVIRONMENT="development"
-AUTO_MIGRATE="true"  # Set to "false" in production if you want manual control
-# Add other variables if required
-```
-
----
-
-## 🧱 Database Migrations
-
-If you're using Alembic:
-
-```bash
-cd backend
-alembic init alembic
-# Configure alembic.ini / env.py with SQLALCHEMY_DATABASE_URL
-alembic revision --autogenerate -m "Initial schema"
-alembic upgrade head
-```
-
----
-
-## ✅ Testing
-
-```bash
-cd backend
-pytest -v --junitxml=report.xml --cov=app --cov-report=xml
-```
-
-The CI workflow runs these tests automatically.
-
----
-
-## 📦 CI / CD Pipeline
-
-- On push or pull request to `main` / `dev` or workflow_dispatch(manually): run tests job  
-- On success in `main`: build and push Docker image  
-- Optionally, deploy (e.g. via Terraform / Kubernetes) using subsequent steps | 🔧 Under development​ ⚠️​  
-
-See `.github/workflows/backend-ci-cd.yml` and `.github/workflows/frontend-ci-cd.yml` for the pipeline definition.
-
----
-
-## 📊 Monitoring & Logging
-
-- **Logs**: structured JSON logs from backend → ELK pipeline (Filebeat → Logstash → Elasticsearch → Grafana/Kibana)  
-- **Metrics**: instrumentation (response times, error rates) → Grafana dashboards  
-- Future plans: alerting, more advanced metrics, dashboards  
-
----
-
-## ⚠️ Troubleshooting & Common Issues
-
-| Problem | Possible Fix |
-|---|---|
-| Traefik fails to get TLS certificate | Ensure DNS A record points to server, bypass CDN for `/.well-known` or use DNS challenge |
-| ImportError in CI for missing functions | Add missing `decode_refresh_token` or adjust test imports |
-| DB not reachable in CI | Match service name `postgres` in `SQLALCHEMY_DATABASE_URL` (e.g. `postgres:5432`) |
-
----
-
-## 🤝 Contributing & Guidelines
-
-- Fork the project  
-- Create a feature branch  
-- Write tests for your changes  
-- Submit a PR  
-- Follow style (black, flake8)  
-- Document new features / config changes  
-
----
+Read [docs/onboarding/contribution-guide.md](docs/onboarding/contribution-guide.md): update the contract first, respect the layering rules, add tests and docs with every change, and log it in `agentlog.md`.
 
 ## 📄 License & Contact
 

@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rr.fullname" . }}-backend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rr.labels" . | nindent 4 }}
+data:
+  RUN_MIGRATIONS: "false"   # migrations run in the dedicated Job
+  UPLOAD_DIR: {{ .Values.uploads.mountPath | quote }}
+  {{- range $k, $v := .Values.backend.env }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rr.fullname" . }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rr.labels" . | nindent 4 }}
+data:
+  BACKEND_URL: {{ printf "http://%s:%v" (include "rr.backendName" .) .Values.backend.port | quote }}
+  FLET_HOST: "0.0.0.0"
+  FLET_PORT: {{ .Values.frontend.port | quote }}
+  UPLOAD_TMP_DIR: /tmp/uploads
+  MAX_UPLOAD_MB: {{ .Values.backend.env.MAX_UPLOAD_MB | quote }}
+  {{- range $k, $v := .Values.frontend.env }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}

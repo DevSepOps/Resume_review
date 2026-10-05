@@ -1,0 +1,55 @@
+name: Helm CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'deployments/helm/**'
+      - '.github/workflows/helm.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'deployments/helm/**'
+      - '.github/workflows/helm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CHART: deployments/helm/resume-review
+  KUBECONFORM_VERSION: v0.6.7
+  # sha256 of kubeconform-linux-amd64.tar.gz for the version above (from the release CHECKSUMS file)
+  KUBECONFORM_SHA256: 95f14e87aa28c09d5941f11bd024c1d02fdc0303ccaa23f61cef67bc92619d73
+  KUBERNETES_VERSION: 1.30.0
+
+jobs:
+  lint:
+    name: Lint and validate chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install kubeconform (pinned, checksum verified)
+        run: |
+          curl -fsSL -o kubeconform.tgz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tgz" | sha256sum -c -
+          tar xzf kubeconform.tgz kubeconform
+          sudo install kubeconform /usr/local/bin/kubeconform
+
+      - name: helm lint
+        run: helm lint "$CHART" --strict --values "$CHART/values-example.yaml"
+
+      - name: helm template | kubeconform
+        run: |
+          helm template release "$CHART" --values "$CHART/values-example.yaml" \
+            | kubeconform -strict -summary -ignore-missing-schemas \
+                -kubernetes-version "$KUBERNETES_VERSION"

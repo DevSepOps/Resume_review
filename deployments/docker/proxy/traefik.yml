@@ -1,0 +1,72 @@
+# Traefik v3 STATIC configuration (Docker Compose deployment).
+#
+# Traefik does not expand environment variables inside this file, and static
+# config sources (file / flags / env) cannot be mixed. The two deployment-specific
+# values are therefore placeholders that the container entrypoint replaces with
+# sed before starting Traefik (see docker-compose.yml, service `proxy`):
+#   __ACME_EMAIL__      <- $ACME_EMAIL
+#   __ACME_CA_SERVER__  <- $ACME_CA_SERVER  (production by default; use the
+#                          Let's Encrypt STAGING url while testing to avoid rate limits)
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: true     # served only through the router in docker-compose.yml labels (auth required)
+  insecure: false     # never expose :8080
+
+ping:
+  entryPoint: ping    # used by the container HEALTHCHECK, bound to localhost only
+
+log:
+  level: INFO
+  format: json        # stdout/stderr, collected by the Docker logging driver
+
+accessLog:
+  format: json
+  bufferingSize: 100
+  fields:
+    defaultMode: keep
+    headers:
+      defaultMode: drop            # never log Authorization / Cookie headers
+      names:
+        User-Agent: keep
+
+entryPoints:
+  ping:
+    address: "127.0.0.1:8082"
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: le
+      middlewares:
+        - secure-headers@file
+        - compress@file
+
+providers:
+  docker:
+    endpoint: "tcp://docker-socket-proxy:2375"   # filtered, read-only API (no raw docker.sock in Traefik)
+    exposedByDefault: false
+    network: resume_public_net
+    watch: true
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+certificatesResolvers:
+  le:
+    acme:
+      email: "__ACME_EMAIL__"
+      storage: /letsencrypt/acme.json
+      caServer: "__ACME_CA_SERVER__"
+      httpChallenge:
+        entryPoint: web

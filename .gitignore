@@ -23,13 +23,19 @@ logs/*
 event.json
 act.txt
 
-# Database
-backend/postgres/data/
-backend/postgres/db_postgres.env
-backend/alembic.ini
-
-# Uploads
+# Uploads / local data
 backend/uploads/
+backend/data/
+coverage.xml
+.coverage
+htmlcov/
+coverage_html/
+.pytest_cache/
+
+# Deployment secrets (examples are tracked)
+deployments/docker/proxy/secrets/*
+!deployments/docker/proxy/secrets/*.example
+deployments/swarm/stack.env
 
 # Python
 __pycache__/
@@ -65,7 +71,7 @@ frontend/yarn-error.log*
 *.log
 *.plan
 .terraform/
-.terraform.lock.hcl
+# .terraform.lock.hcl is intentionally tracked (provider pinning)
 terraform.tfstate.backup
 crash.log
 terraform.rc
@@ -79,8 +85,8 @@ terraform.rc
 __pycache__/
 inventory.ini
 vault_pass.txt
-group_vars/
-host_vars/
+# real vault files only; example and non-secret group_vars are tracked
+infra/ansible/**/vault.yml
 *.vault
 *.secret
 

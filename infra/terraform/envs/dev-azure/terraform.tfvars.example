@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (git-ignored) and edit. Contains NO secrets (a public key is not secret).
+location       = "westeurope"
+owner          = "your-name"
+admin_cidr     = "203.0.113.10/32" # your public IP: curl -4 ifconfig.me
+ssh_public_key = "ssh-ed25519 AAAA... you@host"
+
+# vm_size         = "Standard_B2s"
+# os_disk_size_gb = 30

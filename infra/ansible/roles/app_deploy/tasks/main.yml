@@ -1,0 +1,67 @@
+---
+- name: Check that required secrets are defined
+  ansible.builtin.assert:
+    that:
+      - vault_postgres_password is defined
+      - vault_jwt_secret_key is defined
+      - vault_jwt_secret_key | length >= 32
+      - vault_flet_secret_key is defined
+      - vault_elastic_password is defined
+      - vault_grafana_admin_password is defined
+      - vault_traefik_htpasswd is defined
+    fail_msg: >-
+      Secrets missing. Copy group_vars/all/vault.yml.example to vault.yml, fill it and
+      encrypt it with ansible-vault.
+    quiet: true
+  no_log: true
+
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+- name: Fetch application source at requested version
+  ansible.builtin.git:
+    repo: "{{ app_repo_url }}"
+    dest: "{{ app_dir }}"
+    version: "{{ app_version }}"
+    force: false
+  become: true
+  become_user: "{{ deploy_user }}"
+
+- name: Render compose environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/{{ app_compose_subdir }}/.env"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+  no_log: true # never print secrets in diffs
+
+- name: Write Traefik dashboard basic-auth file
+  ansible.builtin.copy:
+    dest: "{{ app_dir }}/{{ app_compose_subdir }}/proxy/secrets/htpasswd"
+    content: "{{ vault_traefik_htpasswd }}\n"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644" # bind-mounted read-only into the non-root Traefik container; bcrypt hash only
+  no_log: true
+
+- name: Pull images and start the stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}/{{ app_compose_subdir }}"
+    files:
+      - docker-compose.yml
+    env_files:
+      - "{{ app_dir }}/{{ app_compose_subdir }}/.env"
+    profiles: "{{ compose_profiles }}"
+    pull: always
+    state: present
+    remove_orphans: true
+    wait: true
+    wait_timeout: "{{ app_wait_timeout }}"
+  become: true
+  become_user: "{{ deploy_user }}"

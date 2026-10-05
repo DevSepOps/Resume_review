@@ -1,0 +1,438 @@
+# Resume Review - Docker Compose (single host).
+#
+#   cp .env.example .env && edit .env          # all CHANGE_ME values
+#   cp proxy/secrets/htpasswd.example proxy/secrets/htpasswd && edit
+#   docker compose up -d                       # core: proxy, frontend, backend, db
+#   docker compose --profile monitoring --profile ops up -d
+#
+# No top-level `version:` key: it is obsolete in Compose v2 (the Compose
+# Specification is versionless; v2 warns about it). rules.md asks for "3.8 or
+# higher" - every feature used here (healthchecks, depends_on conditions,
+# deploy.resources, profiles) is a Compose v2 / spec feature newer than 3.8.
+name: ${COMPOSE_PROJECT_NAME:-resume-review}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-hardened: &hardened
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  restart: unless-stopped
+  logging: *default-logging
+
+services:
+  # ---------------------------------------------------------------- edge ----
+  # Read-only, filtered view of the Docker API for Traefik. Only the endpoints
+  # Traefik needs are enabled, and it lives on an `internal` network, so a
+  # compromised Traefik cannot create/exec/delete containers.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    <<: *hardened
+    environment:
+      CONTAINERS: "1"
+      NETWORKS: "1"
+      SERVICES: "1"
+      TASKS: "1"
+      INFO: "1"
+      POST: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [socket_net]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:2375/_ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits: {cpus: "0.25", memory: 64M}
+
+  proxy:
+    image: traefik:v3.6
+    <<: *hardened
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+      ACME_CA_SERVER: ${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+    # Render the two ACME placeholders (Traefik cannot read env in a static file), then exec.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        sed -e "s|__ACME_EMAIL__|$${ACME_EMAIL}|g"
+        -e "s|__ACME_CA_SERVER__|$${ACME_CA_SERVER}|g"
+        /etc/traefik/traefik.yml.tmpl > /tmp/traefik.yml
+        && exec traefik --configFile=/tmp/traefik.yml
+    volumes:
+      - ./proxy/traefik.yml:/etc/traefik/traefik.yml.tmpl:ro
+      - ./proxy/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./proxy/secrets/htpasswd:/etc/traefik/secrets/htpasswd:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks: [public_net, socket_net]
+    depends_on:
+      docker-socket-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping", "--configFile=/tmp/traefik.yml"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: resume_public_net
+      # Dashboard: TLS + basic auth (usersFile) + rate limit. No :8080, no api.insecure.
+      traefik.http.routers.dashboard.rule: Host(`${TRAEFIK_DOMAIN}`)
+      traefik.http.routers.dashboard.entrypoints: websecure
+      traefik.http.routers.dashboard.service: api@internal
+      traefik.http.routers.dashboard.middlewares: dashboard-auth@file,rate-limit-ops@file
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 256M}
+
+  # ---------------------------------------------------------------- data ----
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:            # the official entrypoint chowns PGDATA then drops to `postgres`
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/postgresql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [internal_net]          # never on public_net, no host port
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+
+  # ------------------------------------------------------------ application -
+  backend:
+    image: ${BACKEND_IMAGE:-docker.io/sepehrmdn/resume-review-backend}:${TAG:-latest}
+    build:
+      context: ../../backend
+      dockerfile: ../deployments/docker/backend/Dockerfile
+    <<: *hardened
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY (>=32 chars) in .env}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://${APP_DOMAIN}}
+      UPLOAD_DIR: /app/data/uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
+      REFRESH_TOKEN_TTL_SECONDS: ${REFRESH_TOKEN_TTL_SECONDS:-86400}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      # backend has no host port; only the proxy can reach it, so trust its X-Forwarded-* headers
+      FORWARDED_ALLOW_IPS: "*"
+      RUN_MIGRATIONS: "true"           # single instance: entrypoint runs alembic before serving
+      DB_WAIT_TIMEOUT: "60"
+      HOME: /tmp
+    volumes:
+      - backend_uploads:/app/data/uploads
+    networks: [public_net, internal_net]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: resume_public_net
+      traefik.http.services.backend.loadbalancer.server.port: "8000"
+      # General API router; /ready is internal-only (DB state), hence excluded from the public rule.
+      traefik.http.routers.backend.rule: Host(`${API_DOMAIN}`) && !Path(`/ready`)
+      traefik.http.routers.backend.entrypoints: websecure
+      traefik.http.routers.backend.service: backend
+      traefik.http.routers.backend.middlewares: rate-limit-api@file,body-limit@file
+      # Auth endpoints: much stricter limit (higher priority than the general router).
+      traefik.http.routers.backend-auth.rule: Host(`${API_DOMAIN}`) && (Path(`/users/login`) || Path(`/users/register`) || Path(`/users/refresh_token`))
+      traefik.http.routers.backend-auth.priority: "100"
+      traefik.http.routers.backend-auth.entrypoints: websecure
+      traefik.http.routers.backend-auth.service: backend
+      traefik.http.routers.backend-auth.middlewares: rate-limit-auth@file,body-limit@file
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-docker.io/sepehrmdn/resume-review-frontend}:${TAG:-latest}
+    build:
+      context: ../../frontend
+      dockerfile: ../deployments/docker/frontend/Dockerfile
+    <<: *hardened
+    read_only: true
+    tmpfs:
+      - /tmp
+      # short-lived PDF download links are served from here (see docs/features/frontend/resumes.md)
+      - /app/assets/downloads:uid=10001,gid=10001,mode=0700
+    environment:
+      BACKEND_URL: http://backend:8000
+      FLET_HOST: 0.0.0.0
+      FLET_PORT: "8001"
+      FLET_SECRET_KEY: ${FLET_SECRET_KEY:?set FLET_SECRET_KEY in .env}
+      UPLOAD_TMP_DIR: /tmp/uploads
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-15}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      HOME: /tmp
+    networks: [public_net]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8001/', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: resume_public_net
+      traefik.http.routers.frontend.rule: Host(`${APP_DOMAIN}`)
+      traefik.http.routers.frontend.entrypoints: websecure
+      traefik.http.routers.frontend.service: frontend
+      traefik.http.routers.frontend.middlewares: rate-limit-default@file,body-limit@file
+      traefik.http.services.frontend.loadbalancer.server.port: "8001"
+      # Flet keeps per-session state in the server process and speaks websockets
+      # (passed through by Traefik). Sticky cookie keeps a browser on one replica.
+      traefik.http.services.frontend.loadbalancer.sticky.cookie.name: rr_affinity
+      traefik.http.services.frontend.loadbalancer.sticky.cookie.httpOnly: "true"
+      traefik.http.services.frontend.loadbalancer.sticky.cookie.secure: "true"
+      traefik.http.services.frontend.loadbalancer.sticky.cookie.sameSite: lax
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 512M}
+
+  # ------------------------------------------------------- profile: ops -----
+  portainer:
+    profiles: [ops]
+    image: portainer/portainer-ce:2.27.7
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      # Portainer needs the real (read-write) socket: it is root-equivalent on the host.
+      # Keep its router behind rate limiting and set a strong admin password at first login.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks: [public_net]
+    healthcheck:
+      test: ["CMD", "/portainer", "--version"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: resume_public_net
+      traefik.http.routers.portainer.rule: Host(`${PORTAINER_DOMAIN}`)
+      traefik.http.routers.portainer.entrypoints: websecure
+      traefik.http.routers.portainer.service: portainer
+      traefik.http.routers.portainer.middlewares: rate-limit-ops@file
+      traefik.http.services.portainer.loadbalancer.server.port: "9000"
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 256M}
+
+  # -------------------------------------------------- profile: monitoring ---
+  elasticsearch:
+    profiles: [monitoring]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: ${ES_JAVA_OPTS:--Xms512m -Xmx512m}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in .env}
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"   # plain HTTP, only reachable on monitoring_net
+    ulimits:
+      memlock: {soft: -1, hard: -1}
+      nofile: {soft: 65536, hard: 65536}
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks: [monitoring_net]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -u elastic:$$ELASTIC_PASSWORD http://localhost:9200/_cluster/health | grep -Eq '\"status\":\"(green|yellow)\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits: {cpus: "1.5", memory: 1536M}
+
+  logstash:
+    profiles: [monitoring]
+    image: docker.elastic.co/logstash/logstash:8.17.0
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in .env}
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
+      XPACK_MONITORING_ENABLED: "false"
+    volumes:
+      - ./monitoring/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - logstash_data:/usr/share/logstash/data
+    networks: [monitoring_net]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9600/ >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 768M}
+
+  metricbeat:
+    profiles: [monitoring]
+    image: docker.elastic.co/beats/metricbeat:8.17.0
+    restart: unless-stopped
+    logging: *default-logging
+    user: root                          # required to read host /proc and /sys
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_READ_SEARCH
+      - SYS_PTRACE
+    command: ["metricbeat", "-e", "--strict.perms=false", "--system.hostfs=/hostfs"]
+    volumes:
+      - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    networks: [monitoring_net]
+    depends_on:
+      logstash:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "metricbeat test config --strict.perms=false -c /usr/share/metricbeat/metricbeat.yml >/dev/null 2>&1"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 256M}
+
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana-oss:11.4.0
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_SERVER_ROOT_URL: https://${GRAFANA_DOMAIN}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in .env}   # used by datasource provisioning
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+    networks: [public_net, monitoring_net]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: resume_public_net
+      traefik.http.routers.grafana.rule: Host(`${GRAFANA_DOMAIN}`)
+      traefik.http.routers.grafana.entrypoints: websecure
+      traefik.http.routers.grafana.service: grafana
+      traefik.http.routers.grafana.middlewares: rate-limit-ops@file
+      traefik.http.services.grafana.loadbalancer.server.port: "3000"
+    deploy:
+      resources:
+        limits: {cpus: "0.5", memory: 384M}
+
+networks:
+  public_net:                  # edge: proxy + everything Traefik routes to
+    name: resume_public_net
+  internal_net:                # backend <-> db only; no route to the outside world
+    name: resume_internal_net
+    internal: true
+  socket_net:                  # traefik <-> docker-socket-proxy only
+    name: resume_socket_net
+    internal: true
+  monitoring_net:              # elastic stack; grafana additionally joins public_net
+    name: resume_monitoring_net
+    internal: true
+
+volumes:
+  postgres_data:
+  backend_uploads:
+  traefik_letsencrypt:
+  portainer_data:
+  es_data:
+  logstash_data:
+  grafana_data:

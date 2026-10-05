@@ -1,0 +1,8 @@
+---
+- name: Provision host and deploy Resume Review
+  hosts: app_servers
+  become: true
+  roles:
+    - common
+    - docker
+    - app_deploy
