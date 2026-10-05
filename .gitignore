@@ -11,6 +11,8 @@ docker-compose.override.yml
 **/.cache/
 *.bak
 *.tmp
+.claude/ 
+agentlog.md
 
 # Logs
 *.log
