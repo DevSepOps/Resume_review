@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Minimal first-boot bootstrap. Everything else (Docker, firewall, app) is Ansible's job.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+hostnamectl set-hostname "${hostname}"
+apt-get update -y
+# python3 is required by Ansible on the target; Ubuntu 24.04 cloud images already ship it.
+apt-get install -y python3

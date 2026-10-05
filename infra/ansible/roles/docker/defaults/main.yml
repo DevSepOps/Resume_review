@@ -1,0 +1,12 @@
+---
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+docker_apt_key_url: https://download.docker.com/linux/ubuntu/gpg
+docker_apt_key_path: /etc/apt/keyrings/docker.asc
+docker_users: ["{{ deploy_user | default('deploy') }}"] # members of the docker group are root-equivalent
+docker_log_max_size: 10m
+docker_log_max_file: "3"

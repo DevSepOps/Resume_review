@@ -1,0 +1,6 @@
+---
+- name: Deploy / update the Resume Review stack
+  hosts: app_servers
+  become: true
+  roles:
+    - app_deploy
