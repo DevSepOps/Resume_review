@@ -1,0 +1,13 @@
+---
+# Template for the SECRET variables. Do NOT put real values in this file.
+#   cp vault.yml.example vault.yml
+#   # edit vault.yml, then encrypt it:
+#   ansible-vault encrypt vault.yml
+#   # run playbooks with --ask-vault-pass or --vault-password-file <file outside the repo>
+# Generate strong values with: openssl rand -hex 32  (hex only: the DB password is embedded unescaped in DATABASE_URL)
+vault_postgres_password: CHANGEME
+vault_jwt_secret_key: CHANGEME # >= 32 chars (backend refuses to start in production otherwise)
+vault_flet_secret_key: CHANGEME
+vault_grafana_admin_password: CHANGEME
+vault_elastic_password: CHANGEME
+vault_traefik_htpasswd: CHANGEME # output of: htpasswd -nbB admin '<password>'  (Traefik dashboard basic auth)

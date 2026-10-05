@@ -1,0 +1,25 @@
+# Local sandbox VM: Ubuntu 24.04 + Docker + act (run GitHub workflows locally).
+# The repository root is mounted at /home/vagrant/resume-review.
+REPO_ROOT = File.expand_path("../..", __dir__)
+
+Vagrant.configure("2") do |config|
+  config.vm.define "sandbox" do |sandbox|
+    sandbox.vm.box = "bento/ubuntu-24.04"
+    sandbox.vm.box_version = "202502.21.0"
+    sandbox.vm.hostname = "sandbox"
+
+    sandbox.vm.synced_folder REPO_ROOT, "/home/vagrant/resume-review"
+
+    # Bind to localhost only: the sandbox must not be reachable from the LAN.
+    sandbox.vm.network "forwarded_port", guest: 8000, host: 8000, host_ip: "127.0.0.1"
+    sandbox.vm.network "forwarded_port", guest: 8001, host: 8001, host_ip: "127.0.0.1"
+    sandbox.vm.network "private_network", ip: "192.168.56.10"
+
+    sandbox.vm.provider "virtualbox" do |vb|
+      vb.memory = 4096
+      vb.cpus = 2
+    end
+
+    sandbox.vm.provision "shell", path: "provisioners/sandbox.sh"
+  end
+end

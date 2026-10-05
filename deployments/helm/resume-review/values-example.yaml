@@ -1,0 +1,37 @@
+# Realistic production override. Secrets come from a pre-created Secret
+# (e.g. via External Secrets / sealed-secrets), never from this file.
+global:
+  imageTag: v1.0.0
+
+backend:
+  replicas: 1
+  env:
+    CORS_ORIGINS: https://resume.example.com
+
+frontend:
+  replicas: 2
+
+db:
+  persistence:
+    size: 20Gi
+    storageClass: fast-ssd
+
+secrets:
+  create: false
+  existingSecret: resume-review-secrets   # keys: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, JWT_SECRET_KEY, FLET_SECRET_KEY, DATABASE_URL
+
+uploads:
+  size: 20Gi
+  storageClass: fast-ssd
+
+ingress:
+  className: traefik
+  appHost: resume.example.com
+  apiHost: api.resume.example.com
+  tls:
+    enabled: true
+    secretName: resume-review-tls
+    clusterIssuer: letsencrypt-prod
+
+networkPolicy:
+  enabled: true

@@ -1,0 +1,24 @@
+---
+# Non-secret settings for the dev environment.
+
+# --- host hardening (common role) ---
+deploy_user: deploy
+# Public keys allowed to log in as the deploy user (used by CI deploy.yml via DEPLOY_SSH_KEY).
+deploy_authorized_keys:
+  - "ssh-ed25519 AAAA... ci-deploy@resume-review" # CHANGEME
+
+# --- application (app_deploy role) ---
+app_repo_url: https://github.com/DevSepOps/Resume_review.git
+app_version: main # branch, tag (v1.2.3) or commit sha
+app_dir: /opt/resume-review
+compose_profiles: [] # e.g. [monitoring]; see deployments/docker/docker-compose.yml
+image_tag: latest # becomes TAG in .env; prefer sha-<7> or vX.Y.Z for pinned deploys
+
+app_domain: app.example.com # CHANGEME
+api_domain: api.example.com # CHANGEME
+grafana_domain: grafana.example.com # CHANGEME
+traefik_domain: traefik.example.com # CHANGEME
+portainer_domain: portainer.example.com # CHANGEME
+acme_email: ops@example.com # CHANGEME
+# acme_ca_server: https://acme-staging-v02.api.letsencrypt.org/directory # use while testing
+app_environment: production

@@ -1,0 +1,55 @@
+{{- if .Values.migrations.enabled }}
+# Hook design: post-install,pre-upgrade.
+#  - post-install: the DB StatefulSet (same release) must exist first; a pre-install hook would
+#    hang waiting for a database that is only created after hooks succeed.
+#  - pre-upgrade: schema is migrated before the new backend pods roll out (expand/contract rule).
+# A single Job (not per-replica) avoids concurrent `alembic upgrade head` runs.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "rr.fullname" . }}-migrate
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rr.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "rr.selectorLabels" (dict "ctx" . "component" "migrations") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- include "rr.pullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.db.enabled }}
+      initContainers:
+        {{- include "rr.waitForDb" . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migrate
+          image: {{ include "rr.image" (dict "ctx" . "image" .Values.backend.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          workingDir: /app
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: {{ include "rr.secretName" . }}, key: DATABASE_URL}
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

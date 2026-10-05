@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rr.frontendName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rr.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "rr.selectorLabels" (dict "ctx" . "component" "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rr.selectorLabels" (dict "ctx" . "component" "frontend") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- include "rr.pullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: frontend
+          image: {{ include "rr.image" (dict "ctx" . "image" .Values.frontend.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.frontend.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "rr.fullname" . }}-frontend
+          env:
+            - name: FLET_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: {{ include "rr.secretName" . }}, key: FLET_SECRET_KEY}
+          startupProbe:
+            tcpSocket: {port: http}
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: downloads, mountPath: /app/assets/downloads}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: downloads
+          emptyDir: {sizeLimit: 256Mi}
+      {{- with .Values.frontend.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.frontend.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.frontend.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}

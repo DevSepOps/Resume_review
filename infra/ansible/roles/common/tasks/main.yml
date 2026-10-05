@@ -1,0 +1,60 @@
+---
+- name: Update apt cache and apply safe upgrades
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: safe
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Enable unattended security upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: Create deploy user
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    create_home: true
+    password_lock: true
+
+- name: Authorize deploy SSH keys
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ item }}"
+    state: present
+  loop: "{{ deploy_authorized_keys }}"
+
+- name: Allow required inbound ports in ufw
+  community.general.ufw:
+    rule: allow
+    port: "{{ item | string }}"
+    proto: tcp
+  loop: "{{ common_ufw_allowed_tcp_ports }}"
+
+- name: Enable ufw with default deny incoming
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: Harden sshd (key-only, no root login)
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf # 00- wins over cloud-init drop-ins (first match wins)
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      PasswordAuthentication {{ 'no' if common_ssh_disable_password_auth else 'yes' }}
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+  notify: Restart ssh

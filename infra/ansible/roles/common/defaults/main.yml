@@ -1,0 +1,14 @@
+---
+deploy_user: deploy
+deploy_authorized_keys: []
+common_packages:
+  - acl # lets Ansible become an unprivileged user (deploy) safely
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - ufw
+  - unattended-upgrades
+  - python3-debian # needed by deb822_repository
+common_ufw_allowed_tcp_ports: [22, 80, 443]
+common_ssh_disable_password_auth: true

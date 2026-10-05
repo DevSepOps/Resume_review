@@ -1,0 +1,23 @@
+# Metricbeat 8.x: host system metrics -> Logstash -> Elasticsearch.
+# Run with:  metricbeat -e --strict.perms=false --system.hostfs=/hostfs
+# (host /proc, /sys and / are mounted read-only under /hostfs)
+
+metricbeat.modules:
+  - module: system
+    period: 10s
+    metricsets: [cpu, load, memory, network, filesystem, fsstat]
+    cpu.metrics: [percentages, normalized_percentages]
+    filesystem.ignore_types: [nfs, smbfs, autofs, tmpfs, overlay, squashfs]
+
+setup.template.enabled: false   # output is Logstash; ES maps fields dynamically
+setup.ilm.enabled: false
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+processors:
+  - add_host_metadata: ~
+
+logging.level: info
+logging.to_stderr: true
+logging.metrics.enabled: false   # self-metrics log noisy "not enough privileges" errors in containers
