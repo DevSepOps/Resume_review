@@ -1,0 +1,5 @@
+.git/
+*.swp
+*.bak
+*.tmp
+values-example.yaml

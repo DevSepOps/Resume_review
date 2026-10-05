@@ -1,0 +1,18 @@
+{{- if .Values.db.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rr.dbName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rr.labels" . | nindent 4 }}
+    app.kubernetes.io/component: db
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    {{- include "rr.selectorLabels" (dict "ctx" . "component" "db") | nindent 4 }}
+{{- end }}

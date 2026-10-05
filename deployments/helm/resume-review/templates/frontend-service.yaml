@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rr.frontendName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rr.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  sessionAffinity: ClientIP   # Flet keeps per-session state in the server process
+  ports:
+    - name: http
+      port: {{ .Values.frontend.port }}
+      targetPort: http
+  selector:
+    {{- include "rr.selectorLabels" (dict "ctx" . "component" "frontend") | nindent 4 }}

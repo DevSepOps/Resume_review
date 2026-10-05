@@ -1,0 +1,26 @@
+Resume Review {{ .Chart.AppVersion }} installed as "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+1. Watch the rollout:
+   kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+{{- if .Values.migrations.enabled }}
+   Migrations run as a Helm hook Job ({{ include "rr.fullname" . }}-migrate) after install / before upgrade.
+   If the install returned before it finished, the backend /ready stays 200 but API calls may fail
+   until the Job completes: kubectl -n {{ .Release.Namespace }} get jobs
+{{- end }}
+
+2. Smoke test:  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+3. Endpoints:
+{{- if .Values.ingress.enabled }}
+   App: http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.appHost }}
+   API: http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.apiHost }}   (class: {{ .Values.ingress.className }})
+{{- else }}
+   Ingress disabled. Port-forward:
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "rr.frontendName" . }} {{ .Values.frontend.port }}:{{ .Values.frontend.port }}
+{{- end }}
+
+4. Create the first admin (no HTTP endpoint exists for this):
+   kubectl -n {{ .Release.Namespace }} exec -it deploy/{{ include "rr.backendName" . }} -- \
+     python -m app.cmd.create_admin --username <u> --email <e>
+
+Uploads PVC "{{ include "rr.fullname" . }}-uploads" is kept on uninstall (helm.sh/resource-policy: keep).

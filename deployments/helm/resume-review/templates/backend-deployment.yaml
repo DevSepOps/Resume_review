@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rr.backendName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "rr.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  # Uploads PVC is RWO by default: avoid two pods racing on the volume during rollouts.
+  strategy:
+    {{- if eq .Values.uploads.accessMode "ReadWriteMany" }}
+    type: RollingUpdate
+    {{- else }}
+    type: Recreate
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rr.selectorLabels" (dict "ctx" . "component" "backend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rr.selectorLabels" (dict "ctx" . "component" "backend") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.secrets.create }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+    spec:
+      {{- include "rr.pullSecrets" . | nindent 6 }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backend
+          image: {{ include "rr.image" (dict "ctx" . "image" .Values.backend.image) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "rr.fullname" . }}-backend
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: {{ include "rr.secretName" . }}, key: DATABASE_URL}
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: {{ include "rr.secretName" . }}, key: JWT_SECRET_KEY}
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            {{- toYaml .Values.backend.startupProbe | nindent 12 }}
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}
+            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - {name: uploads, mountPath: {{ .Values.uploads.mountPath }}}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: {{ include "rr.fullname" . }}-uploads
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}

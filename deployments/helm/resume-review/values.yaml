@@ -1,0 +1,156 @@
+# Resume Review chart. Secret values are intentionally empty: supply them with
+# --set / a private values file, or point secrets.existingSecret at your own Secret.
+
+global:
+  imageRegistry: docker.io
+  # Defaults to the chart appVersion (a vX.Y.Z git-tag image). "latest" is rejected.
+  imageTag: ""
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+backend:
+  replicas: 1                      # >1 requires uploads.accessMode=ReadWriteMany
+  image:
+    repository: sepehrmdn/resume-review-backend
+    tag: ""                        # overrides global.imageTag
+  port: 8000
+  # Non-secret contract variables (docs/architecture/contracts.md section 2).
+  env:
+    ENVIRONMENT: production
+    CORS_ORIGINS: ""               # comma-separated exact origins, e.g. https://app.example.com
+    MAX_UPLOAD_MB: "10"
+    ACCESS_TOKEN_TTL_SECONDS: "900"
+    REFRESH_TOKEN_TTL_SECONDS: "86400"
+    LOG_LEVEL: INFO
+    DB_ECHO: "false"
+    WEB_CONCURRENCY: "2"
+    DB_WAIT_TIMEOUT: "60"
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 512Mi}
+  startupProbe:
+    failureThreshold: 30
+    periodSeconds: 5
+  livenessProbe:
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+frontend:
+  replicas: 1
+  image:
+    repository: sepehrmdn/resume-review-frontend
+    tag: ""
+  port: 8001
+  env:
+    REQUEST_TIMEOUT: "15"
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+db:
+  enabled: true                    # false = use an external database (externalDatabase.url)
+  image:
+    repository: postgres
+    tag: 16-alpine
+  persistence:
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 512Mi}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+externalDatabase:
+  # Used only when db.enabled=false and secrets.create=true, e.g.
+  # postgresql+psycopg2://user:pass@host:5432/resume_review
+  # (with an existingSecret, put it in the Secret key DATABASE_URL instead)
+  url: ""
+
+secrets:
+  # create=true : the chart renders a Secret from the values below (all required).
+  # create=false: you provide secrets.existingSecret with the keys
+  #   JWT_SECRET_KEY, FLET_SECRET_KEY, DATABASE_URL and, when db.enabled,
+  #   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB.
+  create: true
+  existingSecret: ""
+  values:
+    POSTGRES_USER: ""
+    POSTGRES_PASSWORD: ""
+    POSTGRES_DB: ""
+    JWT_SECRET_KEY: ""             # >= 32 chars
+    FLET_SECRET_KEY: ""
+
+uploads:
+  size: 5Gi
+  accessMode: ReadWriteOnce
+  storageClass: ""
+  mountPath: /app/data/uploads
+
+migrations:
+  enabled: true                    # Helm hook Job: post-install,pre-upgrade
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
+
+ingress:
+  enabled: true
+  className: traefik
+  appHost: app.example.com         # frontend
+  apiHost: api.example.com         # backend
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: resume-review-tls
+    clusterIssuer: ""              # adds cert-manager.io/cluster-issuer when set
+
+networkPolicy:
+  enabled: false                   # when true: database accepts traffic only from backend + migrations
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+# The official postgres image runs as uid/gid 70 (alpine).
+dbPodSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 70
+  runAsGroup: 70
+  fsGroup: 70
+  seccompProfile:
+    type: RuntimeDefault
+
+test:
+  image:
+    repository: curlimages/curl
+    tag: 8.10.1
+
+# Monitoring/logging (Prometheus, Grafana, ELK) is NOT part of this chart; see
+# docs/features/infra/helm-chart.md for the recommended operators.
