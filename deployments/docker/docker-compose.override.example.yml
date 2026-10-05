@@ -1,0 +1,10 @@
+# LOCAL DEBUGGING ONLY. Copy to docker-compose.override.yml (gitignored; compose
+# merges it automatically) to reach the app containers directly, bypassing Traefik.
+# Ports are bound to loopback so they are not reachable from the network.
+services:
+  backend:
+    ports:
+      - "127.0.0.1:8000:8000"
+  frontend:
+    ports:
+      - "127.0.0.1:8001:8001"

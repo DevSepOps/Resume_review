@@ -1,0 +1,21 @@
+apiVersion: 1
+
+# Grafana expands ${ENV_VARS} in provisioning files. ELASTIC_PASSWORD is passed
+# to the grafana container by docker-compose.yml / docker-stack.monitoring.yml.
+datasources:
+  - name: Elasticsearch
+    uid: elasticsearch-metricbeat   # referenced by dashboards/metricbeat-system.json - do not change
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    isDefault: true
+    basicAuth: true
+    basicAuthUser: elastic
+    secureJsonData:
+      basicAuthPassword: ${ELASTIC_PASSWORD}
+    jsonData:
+      index: "metricbeat-*"
+      timeField: "@timestamp"
+      esVersion: "8.0.0"
+      timeInterval: "10s"
+      logMessageField: message
