@@ -204,6 +204,6 @@ See `.github/workflows/backend-ci-cd.yml` and `.github/workflows/frontend-ci-cd.
 ## 📄 License & Contact
 
 - License: MIT  
-- Maintainer: Sepehr Maadani — sepehrmaadani98@gmail.com  
+- Maintainer: Sepehr Maadani - sepehrmaadani98@gmail.com  
 - Feel free to use or adapt this for your own portfolios or refer to this as a sample DevOps setup  
 
