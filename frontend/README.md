@@ -1,93 +1,15 @@
-# Frontend app
+# Resume Review - frontend
 
-## Run the app
+Flet 0.28.3 web app (feature-based). See the docs:
 
-### uv
+- Architecture: [docs/architecture/frontend-architecture.md](../docs/architecture/frontend-architecture.md)
+- Run / deploy: [docs/runbooks/frontend/frontend-app.md](../docs/runbooks/frontend/frontend-app.md)
+- Troubleshooting: [docs/troubleshooting/frontend.md](../docs/troubleshooting/frontend.md)
 
-Run as a desktop app:
+Quick start:
 
-```
-uv run flet run
-```
-
-Run as a web app:
-
-```
-uv run flet run --web
-```
-
-### Poetry
-
-Install dependencies from `pyproject.toml`:
-
-```
-poetry install
-```
-
-Run as a desktop app:
-
-```
-poetry run flet run
-```
-
-Run as a web app:
-
-```
-poetry run flet run --web
-```
-
-For more details on running the app, refer to the [Getting Started Guide](https://flet.dev/docs/getting-started/).
-
-## Build the app
-
-### Android
-
-```
-flet build apk -v
-```
-
-For more details on building and signing `.apk` or `.aab`, refer to the [Android Packaging Guide](https://flet.dev/docs/publish/android/).
-
-### iOS
-
-```
-flet build ipa -v
-```
-
-For more details on building and signing `.ipa`, refer to the [iOS Packaging Guide](https://flet.dev/docs/publish/ios/).
-
-### macOS
-
-```
-flet build macos -v
-```
-
-For more details on building macOS package, refer to the [macOS Packaging Guide](https://flet.dev/docs/publish/macos/).
-
-### Linux
-
-```
-flet build linux -v
-```
-
-For more details on building Linux package, refer to the [Linux Packaging Guide](https://flet.dev/docs/publish/linux/).
-
-### Windows
-
-```
-flet build windows -v
-```
-
-For more details on building Windows package, refer to the [Windows Packaging Guide](https://flet.dev/docs/publish/windows/).
-
-### For running splash and favicon run command below
-
-```
-flet run -d --web --assets assets --port 8000 main.py
-```
-## Or do this below:
-
-```
-export custom="-d --web --assets assets --port 8000 main.py"
-flet run $custom
+```bash
+pip install -r requirements-dev.txt
+FLET_SECRET_KEY=dev BACKEND_URL=http://localhost:8000 FLET_PORT=8001 python src/main.py
+pytest
 ```
